@@ -12,7 +12,7 @@ let checking = false;
 function setConnectionState(state) {
   websiteStatus.className = `website-status ${state === 'ai-unavailable' ? 'unavailable' : state}`;
   websiteAvailable = state === 'connected' || state === 'ai-unavailable';
-  openWebsiteButton.disabled = !websiteAvailable;
+  openWebsiteButton.disabled = false;
 
   const labels = {
     checking: 'Checking Learnova...',
@@ -29,20 +29,7 @@ async function checkConnection() {
   setConnectionState('checking');
 
   try {
-    let result;
-    if (extensionApi) {
-      result = await extensionApi.runtime.sendMessage({ type: 'learnova-check-services' });
-    } else {
-      const [websiteResponse, ai] = await Promise.all([
-        fetch(WebsiteConfig.websiteBaseUrl, { cache: 'no-store' }),
-        WebsiteConfig.checkApiHealth(),
-      ]);
-      result = {
-        websiteAvailable: websiteResponse.ok,
-        aiAvailable: ai.available,
-        openAIConfigured: ai.openAIConfigured,
-      };
-    }
+    const result = await WebsiteConfig.checkServices();
     if (!result?.websiteAvailable) setConnectionState('unavailable');
     else if (!result?.aiAvailable || !result?.openAIConfigured) setConnectionState('ai-unavailable');
     else setConnectionState('connected');
@@ -54,7 +41,6 @@ async function checkConnection() {
 }
 
 async function openWebsite() {
-  if (!websiteAvailable) return;
   try {
     if (extensionApi) {
       const result = await extensionApi.runtime.sendMessage({ type: 'learnova-open-website', route: 'workspace' });
@@ -76,8 +62,10 @@ function openExtensionWorkspace() {
   window.location.href = url;
 }
 
-destinationLabel.textContent = WebsiteConfig.mode === 'production'
+destinationLabel.textContent = WebsiteConfig.mode === 'production' && WebsiteConfig.websiteConfigured
   ? new URL(WebsiteConfig.websiteBaseUrl).host
+  : WebsiteConfig.mode === 'production'
+    ? 'Extension workspace'
   : 'Local development workspace';
 openWebsiteButton.addEventListener('click', openWebsite);
 openExtensionButton.addEventListener('click', openExtensionWorkspace);

@@ -38,7 +38,6 @@ const LIMITS = Object.freeze({
 });
 
 const DEFAULT_ALLOWED_ORIGINS = [
-  'https://learnova.vercel.app',
   'http://127.0.0.1:8787',
   'http://localhost:8787',
 ];
@@ -49,6 +48,7 @@ const allowedOrigins = new Set([
 const allowedExtensionIds = new Set(commaSeparated(process.env.ALLOWED_EXTENSION_IDS));
 const allowAnyChromeExtension = booleanFromEnv(process.env.ALLOW_ANY_CHROME_EXTENSION, true);
 const isProduction = process.env.NODE_ENV === 'production';
+const deploymentCommit = String(process.env.RENDER_GIT_COMMIT || '').trim().slice(0, 12) || null;
 
 app.disable('x-powered-by');
 app.set('trust proxy', trustProxyHops);
@@ -295,6 +295,7 @@ app.get('/api/health', (req, res) => {
     ok: true,
     service: 'learnova-ai',
     openAIConfigured: Boolean(createOpenAIClient()),
+    commit: deploymentCommit,
   });
 });
 

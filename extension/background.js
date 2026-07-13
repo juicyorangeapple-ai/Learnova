@@ -111,8 +111,14 @@ function dashboardUrl(route = 'dashboard') {
 }
 
 async function findLearnovaWebsiteTab() {
-  const tabs = await chrome.tabs.query({ url: [...WebsiteConfig.tabPatterns] });
-  return tabs.find((tab) => tab.active) || tabs[0] || null;
+  const tabs = WebsiteConfig.tabPatterns.length
+    ? await chrome.tabs.query({ url: [...WebsiteConfig.tabPatterns] })
+    : await chrome.tabs.query({});
+  const workspaceBaseUrl = WebsiteConfig.websiteBaseUrl.split('#')[0];
+  const matchingTabs = WebsiteConfig.tabPatterns.length
+    ? tabs
+    : tabs.filter((tab) => String(tab.url || '').split('#')[0] === workspaceBaseUrl);
+  return matchingTabs.find((tab) => tab.active) || matchingTabs[0] || null;
 }
 
 async function openLearnovaWebsite(route = 'workspace') {
@@ -132,34 +138,12 @@ async function openLearnovaWebsite(route = 'workspace') {
 }
 
 async function checkLearnovaWebsite() {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 2600);
-  try {
-    const response = await fetch(WebsiteConfig.websiteBaseUrl, {
-      method: 'GET',
-      cache: 'no-store',
-      signal: controller.signal,
-    });
-    return { available: response.ok, mode: WebsiteConfig.mode };
-  } catch {
-    return { available: false, mode: WebsiteConfig.mode };
-  } finally {
-    clearTimeout(timeout);
-  }
+  const website = await LearnovaConfig.checkWebsiteHealth();
+  return { ...website, mode: WebsiteConfig.mode };
 }
 
 async function checkLearnovaServices() {
-  const [website, ai] = await Promise.all([
-    checkLearnovaWebsite(),
-    LearnovaConfig.checkApiHealth(),
-  ]);
-  return {
-    available: website.available && ai.available && ai.openAIConfigured,
-    websiteAvailable: website.available,
-    aiAvailable: ai.available,
-    openAIConfigured: ai.openAIConfigured,
-    mode: LearnovaConfig.mode,
-  };
+  return LearnovaConfig.checkServices();
 }
 
 async function recordMinute(domain) {

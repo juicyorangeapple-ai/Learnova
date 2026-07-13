@@ -67,14 +67,29 @@ To use the deployed website and AI service, change only that mode line to:
 const ACTIVE_MODE = 'production';
 ```
 
-Production currently points to:
+Production uses two separate settings:
 
 ```txt
-Website: https://learnova.vercel.app
-AI API:  https://learnova-api.onrender.com
+Website: not configured until Vercel returns the Learnova deployment URL
+AI API:  https://learnova-ilq6.onrender.com
 ```
 
-Replace the production `apiBaseUrl` in `extension/learnova-config.js` with the real URL returned by Render or Railway. Do not add `/api/chat`; enter only the origin, such as `https://my-learnova-api.onrender.com`. Routes and API paths are assembled by the shared config, so no other file needs a URL change.
+`WEBSITE_URL` and `API_BASE_URL` are separate constants in `extension/learnova-config.js`. Never use the Render origin as `WEBSITE_URL`: Render hosts only the API. Until a verified public frontend URL is configured, the launcher safely opens the bundled extension workspace instead of an unrelated site.
+
+### Deploy The Learnova Frontend To Vercel
+
+The real Learnova frontend is the static app in `extension/`. It has no build step. Import this GitHub repository into Vercel with:
+
+```txt
+Root Directory: extension
+Framework Preset: Other
+Build Command: leave blank
+Install Command: leave blank
+Output Directory: .
+Production Branch: main
+```
+
+`extension/vercel.json` serves `dashboard.html` at `/`. After Vercel completes the deployment, copy the exact production URL it returns into `WEBSITE_URL` in `extension/learnova-config.js`. Add only that deployment's origin, without a path or hash, to the backend `ALLOWED_ORIGINS` environment variable, then redeploy both services. Do not reuse `https://learnova.vercel.app` unless that Vercel project has first been replaced with this repository's `extension/` app.
 
 The popup checks both the website and public `/api/health` endpoint. It shows **Learnova connected** only when the workspace and configured AI service are available. If either is offline, page capture and the internal extension workspace remain usable.
 
@@ -135,10 +150,10 @@ curl http://localhost:3001/api/health
 Expected safe response:
 
 ```json
-{"ok":true,"service":"learnova-ai","openAIConfigured":true}
+{"ok":true,"service":"learnova-ai","openAIConfigured":true,"commit":null}
 ```
 
-The response never includes a key, prefix, key length, model, or environment-file details.
+Local development reports `commit: null`; Render reports a short `RENDER_GIT_COMMIT` value so the live revision can be verified. The response never includes a key, prefix, key length, model, or environment-file details.
 
 ## Deploy The AI Service
 
@@ -161,7 +176,7 @@ Recommended demo settings:
 OPENAI_MODEL=gpt-4.1-mini
 OPENAI_MAX_OUTPUT_TOKENS=700
 OPENAI_TIMEOUT_MS=30000
-ALLOWED_ORIGINS=https://learnova.vercel.app
+ALLOWED_ORIGINS=https://the-exact-frontend-origin-returned-by-vercel.example
 ALLOW_ANY_CHROME_EXTENSION=true
 ALLOWED_EXTENSION_IDS=
 RATE_LIMIT_WINDOW_MS=600000
@@ -181,7 +196,9 @@ Do not set `PORT` unless the host explicitly requires it; Render and Railway pro
 6. Set **Start Command** to `npm start`.
 7. Set **Health Check Path** to `/api/health`.
 8. Add the environment variables above in **Environment**.
-9. Deploy, then copy the service origin Render provides, such as `https://learnova-api-xxxx.onrender.com`.
+9. Deploy and confirm `https://learnova-ilq6.onrender.com/api/health` returns JSON with `ok: true`.
+
+The current Render service must be a **Web Service**, not a Static Site. A response containing `x-render-routing: no-server` means Render has no running web-service deploy for that hostname; review the latest deploy log and the settings above, then run **Manual Deploy > Deploy latest commit**.
 
 ### Railway
 

@@ -71,11 +71,11 @@ function setConnectionState(state) {
   if (state === 'unavailable') {
     connectionStatus.querySelector('span').textContent = 'Website unavailable';
     websiteAvailable = false;
-    setWebsiteControlsEnabled(false);
+    setWebsiteControlsEnabled(true);
     return;
   }
   connectionStatus.querySelector('span').textContent = 'Checking connection';
-  setWebsiteControlsEnabled(false);
+  setWebsiteControlsEnabled(true);
 }
 
 async function checkWebsiteConnection() {
@@ -84,20 +84,7 @@ async function checkWebsiteConnection() {
   setConnectionState('checking');
 
   try {
-    let result;
-    if (extensionApi?.runtime) {
-      result = await extensionApi.runtime.sendMessage({ type: 'learnova-check-services' });
-    } else {
-      const [websiteResponse, ai] = await Promise.all([
-        fetch(WebsiteConfig.websiteBaseUrl, { cache: 'no-store' }),
-        WebsiteConfig.checkApiHealth(),
-      ]);
-      result = {
-        websiteAvailable: websiteResponse.ok,
-        aiAvailable: ai.available,
-        openAIConfigured: ai.openAIConfigured,
-      };
-    }
+    const result = await WebsiteConfig.checkServices();
     if (!result?.websiteAvailable) setConnectionState('unavailable');
     else if (!result?.aiAvailable || !result?.openAIConfigured) setConnectionState('ai-unavailable');
     else setConnectionState('connected');
@@ -110,11 +97,6 @@ async function checkWebsiteConnection() {
 }
 
 async function openWebsiteRoute(route = 'workspace') {
-  if (!websiteAvailable && !(await checkWebsiteConnection())) {
-    status.textContent = 'AI website unavailable. Extension tools are still ready below.';
-    return;
-  }
-
   try {
     if (extensionApi?.runtime) {
       const result = await extensionApi.runtime.sendMessage({ type: 'learnova-open-website', route });
@@ -228,8 +210,10 @@ document.querySelectorAll('[data-action]').forEach((button) => {
   button.addEventListener('click', () => saveMaterial(button.dataset.action));
 });
 
-workspaceDestination.textContent = WebsiteConfig.mode === 'production'
+workspaceDestination.textContent = WebsiteConfig.mode === 'production' && WebsiteConfig.websiteConfigured
   ? new URL(WebsiteConfig.websiteBaseUrl).host
+  : WebsiteConfig.mode === 'production'
+    ? 'Extension workspace'
   : 'Local development workspace';
 fillSubjects();
 detectCurrentPage();

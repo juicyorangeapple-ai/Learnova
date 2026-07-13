@@ -1,6 +1,10 @@
 (function () {
   // Change this one value when building the extension for local development or deployment.
-  const ACTIVE_MODE = 'development';
+  const ACTIVE_MODE = 'production';
+  // Set this only to the verified deployment URL returned by the frontend host.
+  // It is intentionally empty until the Learnova workspace in extension/ is deployed.
+  const WEBSITE_URL = '';
+  const API_BASE_URL = 'https://learnova-ilq6.onrender.com';
 
   const MODES = Object.freeze({
     development: Object.freeze({
@@ -12,9 +16,8 @@
       ]),
     }),
     production: Object.freeze({
-      websiteUrl: 'https://learnova.vercel.app',
-      apiBaseUrl: 'https://learnova-api.onrender.com',
-      tabPatterns: Object.freeze(['https://learnova.vercel.app/*']),
+      websiteUrl: WEBSITE_URL,
+      apiBaseUrl: API_BASE_URL,
     }),
   });
 
@@ -26,9 +29,27 @@
   });
 
   const active = MODES[ACTIVE_MODE] || MODES.production;
+  const websiteConfigured = Boolean(active.websiteUrl);
+
+  function internalWorkspaceBaseUrl() {
+    if (globalThis.chrome?.runtime?.getURL) {
+      return globalThis.chrome.runtime.getURL('dashboard.html');
+    }
+    return new URL('dashboard.html', globalThis.location?.href || 'http://127.0.0.1:8787/').toString();
+  }
+
+  function resolvedWebsiteBaseUrl() {
+    return active.websiteUrl || internalWorkspaceBaseUrl();
+  }
+
+  function tabPatterns() {
+    if (!websiteConfigured) return Object.freeze([]);
+    const url = new URL(active.websiteUrl);
+    return Object.freeze([`${url.origin}/*`]);
+  }
 
   function websiteUrl(route = 'workspace') {
-    const url = new URL(active.websiteUrl);
+    const url = new URL(resolvedWebsiteBaseUrl());
     url.hash = ROUTES[route] || ROUTES.workspace;
     return url.toString();
   }
@@ -76,16 +97,52 @@
     }
   }
 
+  async function checkWebsiteHealth({ timeoutMs = 6_000 } = {}) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(resolvedWebsiteBaseUrl(), {
+        method: 'GET',
+        cache: 'no-store',
+        redirect: 'follow',
+        signal: controller.signal,
+      });
+      return { available: response.ok, status: response.status };
+    } catch {
+      return { available: false, status: 0 };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async function checkServices() {
+    const [website, ai] = await Promise.all([
+      checkWebsiteHealth(),
+      checkApiHealth(),
+    ]);
+    return {
+      available: website.available && ai.available && ai.openAIConfigured,
+      websiteAvailable: website.available,
+      aiAvailable: ai.available,
+      openAIConfigured: ai.openAIConfigured,
+      mode: ACTIVE_MODE,
+    };
+  }
+
   const config = Object.freeze({
     mode: ACTIVE_MODE,
     routes: ROUTES,
-    tabPatterns: active.tabPatterns,
-    websiteBaseUrl: active.websiteUrl,
+    tabPatterns: tabPatterns(),
+    websiteBaseUrl: resolvedWebsiteBaseUrl(),
+    websiteConfigured,
     apiBaseUrl: active.apiBaseUrl,
     websiteUrl,
     apiUrl,
     fetchApi,
     checkApiHealth,
+    checkWebsiteHealth,
+    checkServices,
   });
 
   globalThis.LearnovaConfig = config;
