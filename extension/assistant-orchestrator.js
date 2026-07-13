@@ -100,17 +100,27 @@
 
     retrieve(query, state) {
       const profile = state.studentProfile || {};
+      if (state.personalizationEnabled === false || !Object.keys(profile).length) return [];
       const queryTokens = tokenize(query);
       const mastery = [...(state.mastery || [])].sort((a, b) => a.score - b.score);
       const profileWeakTopics = asList(profile.weakTopics);
+      const hasLearningHistory = asList(profile.quizHistory).length > 0;
       const weak = profileWeakTopics.length
         ? profileWeakTopics.map((topic) => ({ subject: 'Profile priority', topic, score: 'student flagged' }))
-        : mastery.slice(0, 4);
-      const strong = mastery.slice(-3).reverse();
+        : hasLearningHistory
+          ? mastery.slice(0, 4)
+          : [];
+      const strong = hasLearningHistory ? mastery.slice(-3).reverse() : [];
+      const overview = [
+        profile.name,
+        profile.yearGroup || profile.grade,
+        profile.curriculum,
+        profile.targetGrades ? `targets: ${profile.targetGrades}` : '',
+      ].filter(Boolean).join(' - ');
       const records = [
         {
           title: 'Student overview',
-          text: `${profile.name || 'Student'} is in ${profile.yearGroup || `Grade ${profile.grade || 10}`}, studying ${profile.curriculum || 'a high school curriculum'} with target grades ${profile.targetGrades || 'not set'} and goals: ${asList(profile.goals).join(', ')}.`,
+          text: [overview, asList(profile.goals).length ? `Goals: ${asList(profile.goals).join(', ')}` : ''].filter(Boolean).join('. '),
         },
         {
           title: 'Weak topics',
@@ -266,6 +276,11 @@
       label: 'Learnova AI Service',
       async generate({ query, contextBundle }) {
         const config = globalThis.LearnovaConfig;
+        const {
+          profileDebug: _profileDebug,
+          isDevelopment: _isDevelopment,
+          ...attachedContext
+        } = contextBundle;
         if (!config?.fetchApi) {
           const configurationError = new Error('Learnova AI configuration is unavailable.');
           configurationError.code = 'BACKEND_CONFIGURATION';
@@ -283,14 +298,14 @@
               message: query,
               conversationHistory: contextBundle.conversationHistory || [],
               studentProfile: contextBundle.studentProfile || contextBundle.profile || {},
-              attachedContext: contextBundle,
+              attachedContext,
             }),
             timeoutMs: 35_000,
           });
         } catch {
           const message = config.mode === 'development'
             ? 'AI backend is not connected. Please start the local server.'
-            : 'Learnova AI is temporarily unavailable. Please try again shortly.';
+            : 'Learnova AI may be waking up. Please try again shortly.';
           const backendError = new Error(message);
           backendError.code = 'BACKEND_DISCONNECTED';
           throw backendError;
@@ -302,7 +317,7 @@
             400: payload.error || 'That request could not be sent. Please shorten it and try again.',
             413: 'That study context is too large. Remove a few attachments and try again.',
             429: 'Learnova AI has reached its demo request limit. Please wait a few minutes and try again.',
-            503: 'Learnova AI is temporarily unavailable. Please try again shortly.',
+            503: 'Learnova AI may be waking up. Please try again shortly.',
             504: 'Learnova AI took too long to respond. Please try again.',
           };
           const backendError = new Error(messages[response.status] || 'Learnova could not complete that AI request. Please try again.');
@@ -398,36 +413,48 @@
     composeContext(query, state, evidence, sourcesUsed) {
       const mastery = [...(state.mastery || [])].sort((a, b) => a.score - b.score);
       const profile = state.studentProfile || {};
+      const personalizationEnabled = state.personalizationEnabled !== false && Object.keys(profile).length > 0;
       const profileWeakTopics = asList(profile.weakTopics);
+      const hasLearningHistory = asList(profile.quizHistory).length > 0;
       return {
         query,
         sourcesUsed,
         evidence: evidence.slice(0, 10),
-        studentProfile: state.studentProfile || {},
+        studentProfile: personalizationEnabled ? profile : {},
+        personalizationEnabled,
         profileDebug: state.profileDebug || null,
         isDevelopment: Boolean(state.isDevelopment),
         profile: {
-          name: profile.name || 'Student',
-          grade: profile.grade || 10,
-          yearGroup: profile.yearGroup || `Grade ${profile.grade || 10}`,
-          curriculum: profile.curriculum || 'High school demo curriculum',
+          name: personalizationEnabled ? profile.name || '' : '',
+          grade: personalizationEnabled ? profile.grade || '' : '',
+          yearGroup: personalizationEnabled ? profile.yearGroup || '' : '',
+          ageRange: personalizationEnabled ? profile.ageRange || '' : '',
+          countryRegion: personalizationEnabled ? profile.countryRegion || '' : '',
+          curriculum: personalizationEnabled ? profile.curriculum || '' : '',
           schoolName: profile.schoolName || '',
-          subjects: profile.subjects || Object.keys(state.subjects || {}),
+          subjects: personalizationEnabled ? profile.subjects || [] : [],
           targetGrades: profile.targetGrades || '',
           upcomingDeadlines: asList(profile.upcomingDeadlines),
           goals: asList(profile.goals),
-          weakTopics: profileWeakTopics.length ? profileWeakTopics : mastery.slice(0, 4),
-          masteryWeakTopics: mastery.slice(0, 4),
-          strengths: asList(profile.strengths).length ? asList(profile.strengths) : mastery.slice(-3).reverse(),
+          weakTopics: personalizationEnabled ? profileWeakTopics : [],
+          masteryWeakTopics: personalizationEnabled && hasLearningHistory ? mastery.slice(0, 4) : [],
+          strengths: personalizationEnabled
+            ? (asList(profile.strengths).length
+                ? asList(profile.strengths)
+                : hasLearningHistory
+                  ? mastery.slice(-3).reverse()
+                  : [])
+            : [],
           learningPreferences: asList(profile.learningPreferences),
           studyStyle: asList(profile.studyStyle),
+          preferredExplanationStyle: profile.preferredExplanationStyle || '',
           universityInterests: profile.universityInterests || '',
           extracurricularInterests: profile.extracurricularInterests || '',
           dailyStudyTime: profile.dailyStudyTime || '',
           quizHistory: profile.quizHistory || [],
           revisionHistory: profile.revisionHistory || [],
         },
-        profileContext: state.profileContext || {},
+        profileContext: personalizationEnabled ? state.profileContext || {} : {},
         browser: state.browserContext || {},
         conversationHistory: state.conversationHistory || [],
         uploadedFiles: (state.assistantUploads || []).slice(0, 12).map((file) => ({

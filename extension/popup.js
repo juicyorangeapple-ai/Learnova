@@ -63,7 +63,7 @@ function setConnectionState(state) {
     return;
   }
   if (state === 'ai-unavailable') {
-    connectionStatus.querySelector('span').textContent = 'AI service unavailable';
+    connectionStatus.querySelector('span').textContent = 'AI is waking up';
     websiteAvailable = true;
     setWebsiteControlsEnabled(true);
     return;

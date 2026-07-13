@@ -138,7 +138,7 @@
       </div>
       <section class="companion-panel" aria-live="polite" aria-label="Learnova companion suggestions">
         <div class="companion-panel-header">
-          <div><span class="companion-panel-kicker">LEARNOVA</span><strong>Study companion</strong></div>
+          <div class="companion-brand"><img src="icons/icon32.png" alt="" width="28" height="28"><span><span class="companion-panel-kicker">LEARNOVA</span><strong>Study companion</strong></span></div>
           <button type="button" class="companion-close" aria-label="Close companion">&times;</button>
         </div>
         <p class="companion-message">${suggestion.message}</p>

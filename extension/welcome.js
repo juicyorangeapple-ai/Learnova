@@ -17,7 +17,7 @@ function setConnectionState(state) {
   const labels = {
     checking: 'Checking Learnova...',
     connected: 'Learnova connected',
-    'ai-unavailable': 'Workspace ready. AI service is unavailable.',
+    'ai-unavailable': 'Workspace ready. AI is waking up - retry shortly.',
     unavailable: 'Website unavailable. The extension workspace is still ready.',
   };
   websiteStatus.querySelector('span').textContent = labels[state];

@@ -4,7 +4,7 @@
   // Set this only to the verified deployment URL returned by the frontend host.
   // It is intentionally empty until the Learnova workspace in extension/ is deployed.
   const WEBSITE_URL = '';
-  const API_BASE_URL = 'https://learnova-ilq6.onrender.com';
+  const API_BASE_URL = 'https://learnova-i1q6.onrender.com';
 
   const MODES = Object.freeze({
     development: Object.freeze({
@@ -30,6 +30,7 @@
 
   const active = MODES[ACTIVE_MODE] || MODES.production;
   const websiteConfigured = Boolean(active.websiteUrl);
+  const apiHealthTimeoutMs = ACTIVE_MODE === 'production' ? 15_000 : 4_000;
 
   function internalWorkspaceBaseUrl() {
     if (globalThis.chrome?.runtime?.getURL) {
@@ -85,7 +86,7 @@
       const response = await fetchApi('/api/health', {
         method: 'GET',
         cache: 'no-store',
-        timeoutMs: 4_000,
+        timeoutMs: apiHealthTimeoutMs,
       });
       const health = await response.json().catch(() => ({}));
       return {

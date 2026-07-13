@@ -88,9 +88,10 @@ const chatRateLimiter = rateLimit({
 });
 
 const SYSTEM_INSTRUCTIONS = `
-You are Learnova Assistant, a calm and encouraging AI study coach for high school students.
+You are Learnova Assistant, a calm and encouraging AI study coach for students across middle school, high school, college, university, and homeschool settings.
 Use the provided student profile, weak topics, saved materials, uploaded-file metadata, and browser context when relevant.
 Keep responses concise, useful, and student-facing. Never shame the student.
+Do not assume a country, age, grade system, curriculum, or level that was not supplied.
 If the student asks for quizzes, flashcards, revision plans, explanations, essay help, motivation, or study strategy, give practical next steps.
 This prototype does not parse uploaded file contents or connect to real school systems, Google Drive, Calendar, Notion, or private files. Never claim that metadata is file content.
 Do not reveal private profile fields such as email unless the student explicitly asks about their account details.
@@ -197,9 +198,13 @@ function normalizeStudentProfile(profile = {}) {
   const safeProfile = profile && typeof profile === 'object' && !Array.isArray(profile) ? profile : {};
   return {
     name: safeText(safeProfile.name, 120),
-    email: safeText(safeProfile.email, 180),
     grade: safeText(safeProfile.grade, 80),
     yearGroup: safeText(safeProfile.yearGroup || safeProfile.year, 80),
+    ageRange: safeText(safeProfile.ageRange, 80),
+    countryRegion: safeText(
+      safeProfile.countryRegion || safeProfile.country || safeProfile.region,
+      120
+    ),
     curriculum: safeText(safeProfile.curriculum, 120),
     school: safeText(safeProfile.school || safeProfile.schoolName, 160),
     subjects: safeList(safeProfile.subjects),
@@ -212,6 +217,7 @@ function normalizeStudentProfile(profile = {}) {
     preferredStudyStyle: safeList(
       safeProfile.preferredStudyStyle || safeProfile.studyStyle || safeProfile.learningPreferences
     ),
+    preferredExplanationStyle: safeText(safeProfile.preferredExplanationStyle, 180),
     universityInterests: safeText(safeProfile.universityInterests, 220),
     careerInterests: safeText(safeProfile.careerInterests || safeProfile.universityInterests, 220),
     extracurricularInterests: safeText(safeProfile.extracurricularInterests, 220),
@@ -234,14 +240,23 @@ function normalizeConversationHistory(value) {
 
 function buildSystemInstructions(studentProfile) {
   const profile = normalizeStudentProfile(studentProfile);
+  const hasProfile = Object.values(profile).some((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value)
+  );
   return [
     SYSTEM_INSTRUCTIONS.trim(),
     '',
-    'Hidden student profile context for personalization:',
+    hasProfile
+      ? 'Hidden student profile context for personalization:'
+      : 'No student profile context is available for this request.',
     JSON.stringify(profile, null, 2),
     '',
-    'Use this profile to tailor answers to the curriculum, subjects, weak topics, academic goals, preferred study style, upcoming deadlines, and available study time.',
-    'When the student asks what to study, recommend a specific next session using those signals.',
+    hasProfile
+      ? 'Use profile details naturally when they are relevant to the request. Adapt terminology, question style, and study recommendations to the supplied curriculum, subjects, goals, weak topics, preferences, deadlines, and available time.'
+      : 'Respond as a capable general study assistant. Ask one short clarification when important academic context is missing.',
+    'Never invent profile details that were not supplied.',
+    'Do not repeat or summarize the full profile unless the student explicitly asks.',
+    'When the student asks what to study, recommend a specific next session using only the available signals.',
   ].join('\n');
 }
 

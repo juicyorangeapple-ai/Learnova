@@ -53,6 +53,7 @@ const defaultFocus = {
 
 const ThemeManager = globalThis.LearnovaTheme;
 const OnboardingTransition = globalThis.LearnovaOnboardingTransition;
+const ProfileService = globalThis.LearnovaProfile;
 const defaultThemePreference = ThemeManager.defaultPreference;
 const accents = ThemeManager.accents;
 const themes = ThemeManager.themes;
@@ -61,7 +62,22 @@ const isDevelopment =
   location.hostname === '127.0.0.1' ||
   location.protocol === 'file:';
 
-const curriculumOptions = ['IB', 'AP', 'A Levels', 'IGCSE', 'O Levels', 'GCSE', 'National Curriculum', 'University / College', 'Other'];
+const curriculumOptions = [
+  'IB',
+  'AP',
+  'A Levels',
+  'AS Levels',
+  'IGCSE',
+  'GCSE',
+  'O Levels',
+  'National Curriculum',
+  'Middle School',
+  'High School',
+  'University',
+  'College',
+  'Homeschool',
+  'Other',
+];
 const studyStyleOptions = ['Flashcards', 'Quizzes', 'Summaries', 'Step-by-step explanations', 'Past-paper practice'];
 
 const defaultAuth = {
@@ -81,7 +97,11 @@ const defaultState = {
     email: '',
     grade: 10,
     yearGroup: 'Year 10',
+    ageRange: '',
+    countryRegion: '',
     avatarDataUrl: '',
+    curriculumChoice: 'IGCSE',
+    customCurriculum: '',
     curriculum: 'Cambridge IGCSE',
     schoolName: '',
     subjects: ['Mathematics', 'Chemistry', 'Physics', 'English', 'Computer Science'],
@@ -95,6 +115,8 @@ const defaultState = {
     universityInterests: '',
     extracurricularInterests: '',
     dailyStudyTime: '45 minutes',
+    preferredExplanationStyle: 'Simple, step-by-step explanations',
+    personalizationEnabled: true,
     quizHistory: [
       { title: 'Quadratics checkpoint', subject: 'Mathematics', topic: 'Quadratics', score: 78 },
       { title: 'Moles basics', subject: 'Chemistry', topic: 'Moles', score: 62 },
@@ -220,6 +242,8 @@ let toastTimer = null;
 let onboardingStep = 0;
 let onboardingMode = 'signup';
 let onboardingDraft = {};
+let onboardingErrors = {};
+let onboardingReturnFocus = null;
 let assistantDraft = '';
 let pendingQuiz = null;
 let revealObserver = null;
@@ -260,11 +284,7 @@ function normalizeThemePreference(raw = {}) {
 }
 
 function toList(value) {
-  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
-  return String(value || '')
-    .split(/[\n,]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  return ProfileService.toList(value);
 }
 
 function listText(value) {
@@ -272,45 +292,12 @@ function listText(value) {
 }
 
 function normalizeAuth(raw = {}) {
-  return {
-    ...defaultAuth,
-    ...raw,
-    isLoggedIn: Boolean(raw.isLoggedIn),
-    profileComplete: Boolean(raw.profileComplete),
-  };
+  return { ...defaultAuth, ...ProfileService.normalizeAuth(raw) };
 }
 
 function normalizeStudentProfile(raw = {}) {
-  const merged = { ...defaultState.studentProfile, ...raw };
-  return {
-    ...merged,
-    name: merged.name || merged.fullName || defaultState.studentProfile.name,
-    email: merged.email || '',
-    grade: merged.grade || merged.yearGroup || defaultState.studentProfile.grade,
-    yearGroup: merged.yearGroup || `Year ${merged.grade || 10}`,
-    curriculum: merged.curriculum || defaultState.studentProfile.curriculum,
-    schoolName: merged.schoolName || merged.school || '',
-    school: merged.school || merged.schoolName || '',
-    subjects: toList(merged.subjects).length ? toList(merged.subjects) : defaultState.studentProfile.subjects,
-    targetGrades: merged.targetGrades || '',
-    upcomingDeadlines: toList(merged.upcomingDeadlines || merged.upcomingExams || merged.deadlines),
-    upcomingExams: toList(merged.upcomingExams || merged.upcomingDeadlines || merged.deadlines),
-    goals: toList(merged.goals || merged.academicGoals),
-    academicGoals: toList(merged.academicGoals || merged.goals),
-    weakTopics: toList(merged.weakTopics || merged.weakSubjects),
-    weakSubjects: toList(merged.weakSubjects || merged.weakTopics),
-    strengths: toList(merged.strengths),
-    learningPreferences: toList(merged.learningPreferences).length ? toList(merged.learningPreferences) : toList(merged.studyStyle),
-    studyStyle: toList(merged.studyStyle).length ? toList(merged.studyStyle) : toList(merged.learningPreferences),
-    universityInterests: merged.universityInterests || '',
-    careerInterests: merged.careerInterests || merged.universityInterests || '',
-    extracurricularInterests: merged.extracurricularInterests || '',
-    dailyStudyTime: merged.dailyStudyTime || '',
-    availableStudyTime: merged.availableStudyTime || merged.dailyStudyTime || '',
-    quizHistory: Array.isArray(merged.quizHistory) ? merged.quizHistory : defaultState.studentProfile.quizHistory,
-    revisionHistory: toList(merged.revisionHistory),
-    avatarDataUrl: merged.avatarDataUrl || '',
-  };
+  const source = raw && Object.keys(raw).length ? raw : defaultState.studentProfile;
+  return ProfileService.normalizeStudentProfile(source);
 }
 
 function resolveTheme(preference = defaultThemePreference) {
@@ -351,15 +338,16 @@ function normalizeState(raw = {}) {
 const storage = {
   async get() {
     if (extensionStorage) {
-      const stored = await extensionStorage.get({
-        learnovaState: defaultState,
-        learnovaSavedPages: [],
-        learnovaFocus: defaultFocus,
-        learnovaBrowserContext: defaultState.browserContext,
-        learnovaTheme: defaultThemePreference,
-        learnovaProfile: null,
-        learnovaAuth: null,
-      });
+      const [stored, savedProfile] = await Promise.all([
+        extensionStorage.get({
+          learnovaState: defaultState,
+          learnovaSavedPages: [],
+          learnovaFocus: defaultFocus,
+          learnovaBrowserContext: defaultState.browserContext,
+          learnovaTheme: defaultThemePreference,
+        }),
+        ProfileService.getStudentProfile(),
+      ]);
       return normalizeState({
         ...defaultState,
         ...stored.learnovaState,
@@ -367,19 +355,20 @@ const storage = {
         browserContext: stored.learnovaBrowserContext || stored.learnovaState.browserContext,
         savedPages: stored.learnovaSavedPages || [],
         theme: stored.learnovaTheme || stored.learnovaState.theme,
-        studentProfile: stored.learnovaProfile || stored.learnovaState.studentProfile,
-        auth: stored.learnovaAuth || stored.learnovaState.auth,
+        studentProfile: savedProfile.profileLoaded ? savedProfile.profile : stored.learnovaState.studentProfile,
+        auth: savedProfile.profileLoaded ? savedProfile.auth : stored.learnovaState.auth,
       });
     }
 
+    const savedProfile = await ProfileService.getStudentProfile();
     return normalizeState({
       ...defaultState,
       ...JSON.parse(localStorage.getItem('learnovaState') || '{}'),
       focus: JSON.parse(localStorage.getItem('learnovaFocus') || 'null') || defaultFocus,
       browserContext: JSON.parse(localStorage.getItem('learnovaBrowserContext') || 'null') || defaultState.browserContext,
       savedPages: JSON.parse(localStorage.getItem('learnovaSavedPages') || '[]'),
-      studentProfile: JSON.parse(localStorage.getItem('learnovaProfile') || 'null') || undefined,
-      auth: JSON.parse(localStorage.getItem('learnovaAuth') || 'null') || undefined,
+      studentProfile: savedProfile.profileLoaded ? savedProfile.profile : undefined,
+      auth: savedProfile.profileLoaded ? savedProfile.auth : undefined,
     });
   },
   async set(next) {
@@ -392,8 +381,6 @@ const storage = {
         learnovaFocus: state.focus,
         learnovaBrowserContext: state.browserContext,
         learnovaTheme: state.theme,
-        learnovaProfile: state.studentProfile,
-        learnovaAuth: state.auth,
       });
       return;
     }
@@ -402,86 +389,49 @@ const storage = {
     localStorage.setItem('learnovaFocus', JSON.stringify(state.focus));
     localStorage.setItem('learnovaBrowserContext', JSON.stringify(state.browserContext));
     localStorage.setItem('learnovaThemeCache', JSON.stringify(state.theme));
-    localStorage.setItem('learnovaProfile', JSON.stringify(state.studentProfile));
-    localStorage.setItem('learnovaAuth', JSON.stringify(state.auth));
   },
 };
 
 async function getProfile() {
-  if (extensionStorage) {
-    const stored = await extensionStorage.get({ learnovaProfile: null, learnovaAuth: null });
-    const profileLoaded = Boolean(stored.learnovaProfile && stored.learnovaAuth?.profileComplete);
-    return {
-      profile: normalizeStudentProfile(stored.learnovaProfile),
-      auth: normalizeAuth(stored.learnovaAuth),
-      profileLoaded,
-    };
-  }
-  const rawProfile = JSON.parse(localStorage.getItem('learnovaProfile') || 'null');
-  const rawAuth = JSON.parse(localStorage.getItem('learnovaAuth') || 'null');
+  const stored = await ProfileService.getStudentProfile();
   return {
-    profile: normalizeStudentProfile(rawProfile || {}),
-    auth: normalizeAuth(rawAuth || {}),
-    profileLoaded: Boolean(rawProfile && rawAuth?.profileComplete),
+    ...stored,
+    profile: stored.profileLoaded ? normalizeStudentProfile(stored.profile) : normalizeStudentProfile(defaultState.studentProfile),
+    auth: normalizeAuth(stored.auth),
   };
 }
 
 function studentProfilePayload(profile = state.studentProfile) {
-  const normalized = normalizeStudentProfile(profile);
-  return {
-    name: normalized.name,
-    email: normalized.email,
-    grade: normalized.grade,
-    yearGroup: normalized.yearGroup,
-    curriculum: normalized.curriculum,
-    school: normalized.school || normalized.schoolName,
-    schoolName: normalized.schoolName || normalized.school,
-    subjects: normalized.subjects,
-    targetGrades: normalized.targetGrades,
-    weakTopics: normalized.weakTopics,
-    weakSubjects: normalized.weakSubjects,
-    upcomingDeadlines: normalized.upcomingDeadlines,
-    upcomingExams: normalized.upcomingExams,
-    goals: normalized.goals,
-    academicGoals: normalized.academicGoals,
-    studyStyle: normalized.studyStyle,
-    preferredStudyStyle: normalized.studyStyle,
-    learningPreferences: normalized.learningPreferences,
-    universityInterests: normalized.universityInterests,
-    careerInterests: normalized.careerInterests,
-    extracurricularInterests: normalized.extracurricularInterests,
-    dailyStudyTime: normalized.dailyStudyTime,
-    availableStudyTime: normalized.availableStudyTime,
-  };
+  return ProfileService.buildStudentContext(profile);
 }
 
 async function saveProfile(profile, auth = {}) {
   const normalizedProfile = normalizeStudentProfile(profile);
-  const normalizedAuth = normalizeAuth({
-    ...state.auth,
-    ...auth,
-    email: normalizedProfile.email || auth.email || state.auth.email,
-    isLoggedIn: true,
-    profileComplete: true,
-    createdAt: state.auth.createdAt || new Date().toISOString(),
-  });
+  const saved = await ProfileService.saveStudentProfile(normalizedProfile, { ...state.auth, ...auth });
+  const normalizedAuth = normalizeAuth(saved.auth);
   await storage.set({
     ...state,
     onboarded: true,
-    studentProfile: normalizedProfile,
+    studentProfile: saved.profile,
     auth: normalizedAuth,
   });
   applyProfileToDashboard();
-  return normalizedProfile;
+  return saved.profile;
+}
+
+async function updateProfile(changes) {
+  const saved = await ProfileService.updateStudentProfile(changes);
+  await storage.set({
+    ...state,
+    studentProfile: saved.profile,
+    auth: normalizeAuth(saved.auth),
+  });
+  applyProfileToDashboard();
+  return saved.profile;
 }
 
 async function clearProfile() {
-  if (extensionStorage) {
-    await extensionStorage.remove(['learnovaProfile', 'learnovaAuth']);
-  } else {
-    localStorage.removeItem('learnovaProfile');
-    localStorage.removeItem('learnovaAuth');
-  }
+  await ProfileService.clearStudentProfile();
   await storage.set({
     ...state,
     onboarded: false,
@@ -498,26 +448,30 @@ function applyProfileToDashboard() {
 
 function injectProfileIntoAssistantContext(context) {
   const profile = studentProfilePayload(state.studentProfile);
+  const { auth: _privateAuth, ...safeContext } = context;
+  const personalizationEnabled = Boolean(
+    state.auth.profileComplete && state.studentProfile.personalizationEnabled !== false
+  );
   return {
-    ...context,
-    studentProfile: profile,
-    auth: state.auth,
-    profileContext: {
+    ...safeContext,
+    studentProfile: personalizationEnabled ? profile : {},
+    personalizationEnabled,
+    profileContext: personalizationEnabled ? {
       identity: `${profile.name}, ${profile.yearGroup || profile.grade}`,
       curriculum: profile.curriculum,
-      schoolName: profile.schoolName,
+      countryRegion: profile.countryRegion,
       subjects: profile.subjects,
       targetGrades: profile.targetGrades,
       upcomingDeadlines: profile.upcomingDeadlines,
-      goals: profile.goals,
+      goals: profile.academicGoals,
       weakTopics: profile.weakTopics,
-      studyStyle: profile.studyStyle,
+      studyStyle: profile.preferredStudyStyle,
+      preferredExplanationStyle: profile.preferredExplanationStyle,
       universityInterests: profile.universityInterests,
       careerInterests: profile.careerInterests,
       extracurricularInterests: profile.extracurricularInterests,
-      dailyStudyTime: profile.dailyStudyTime,
       availableStudyTime: profile.availableStudyTime,
-    },
+    } : {},
   };
 }
 
@@ -525,6 +479,7 @@ function profileDebugSummary(profile, profileLoaded) {
   const normalized = normalizeStudentProfile(profile);
   return {
     profileLoaded,
+    personalizationEnabled: Boolean(profileLoaded && normalized.personalizationEnabled),
     curriculum: normalized.curriculum || 'Not set',
     subjectCount: toList(normalized.subjects).length,
     weakTopicsCount: toList(normalized.weakTopics).length,
@@ -1000,7 +955,10 @@ function companionActionHandlers() {
     },
     'explain-weakest': async () => {
       const weak = weakestMastery();
-      openCompanionTutor(`Explain my weakest topic, ${weak.subject}: ${weak.topic}, simply. Use a short example and finish with one question to check my understanding.`, { send: true });
+      const prompt = state.auth.profileComplete && state.studentProfile.personalizationEnabled !== false
+        ? `Explain my weakest topic, ${weak.subject}: ${weak.topic}, simply. Use a short example and finish with one question to check my understanding.`
+        : 'Help me choose a topic to review, then explain it simply with a short example and one check question.';
+      openCompanionTutor(prompt, { send: true });
     },
     'continue-set': async (context) => {
       const studySet = context.studySet || getCompanionStudySet();
@@ -1015,10 +973,10 @@ function companionActionHandlers() {
     },
     'make-plan': async () => {
       const profile = state.studentProfile;
-      openCompanionTutor(
-        `Make today's focused revision plan using my weak topics (${listText(profile.weakTopics)}), upcoming tasks (${listText(profile.upcomingDeadlines)}), and ${profile.dailyStudyTime || 'my available time'}. Give clear time blocks and one small first step.`,
-        { send: true }
-      );
+      const prompt = state.auth.profileComplete && profile.personalizationEnabled !== false
+        ? `Make today's focused revision plan using my weak topics (${listText(profile.weakTopics)}), upcoming tasks (${listText(profile.upcomingDeadlines)}), and ${profile.dailyStudyTime || 'my available time'}. Give clear time blocks and one small first step.`
+        : 'Help me make a focused revision plan for today. Ask which subjects and how much time I have, then give clear time blocks.';
+      openCompanionTutor(prompt, { send: true });
     },
     flashcards: async (context) => {
       const studySet = context.studySet || getCompanionStudySet();
@@ -1031,7 +989,9 @@ function companionActionHandlers() {
       const studySet = context.studySet || getCompanionStudySet();
       const draft = studySet
         ? `Help me choose the best next step for ${studySet.title}.`
-        : 'Help me choose the best next study step based on my profile and current progress.';
+        : state.auth.profileComplete && state.studentProfile.personalizationEnabled !== false
+          ? 'Help me choose the best next study step based on my profile and current progress.'
+          : 'Help me choose a useful next study step. Ask what I am studying first.';
       openCompanionTutor(draft);
     },
   };
@@ -1405,16 +1365,35 @@ async function mockUpload() {
 function renderAssistant() {
   const profile = state.studentProfile;
   const firstName = (profile.name || 'Student').split(' ')[0];
+  const personalizationActive = Boolean(state.auth.profileComplete && profile.personalizationEnabled !== false);
   const profileWeak = toList(profile.weakTopics)[0] || `${weakestTopic().subject}: ${weakestTopic().topic}`;
-  const prompts = [
-    { label: 'Explain my weakest topic', prompt: `Explain my weakest topic, ${profileWeak}, in a simple ${profile.curriculum || 'high school'} style. Use my profile, goals, and preferred study style.` },
-    { label: 'Quiz me on weak topics', prompt: `Quiz me on my weak topics: ${listText(profile.weakTopics)}. Make it targeted to my ${profile.curriculum || 'curriculum'} and target grades of ${profile.targetGrades || 'my goals'}.` },
-    { label: 'Make flashcards from my notes', prompt: 'Make flashcards from my uploaded notes and saved study materials. Prioritize my weak topics and keep them concise.' },
-    { label: "Create today's revision plan", prompt: `Create today's revision plan using my upcoming tasks (${listText(profile.upcomingDeadlines)}) and weak topics (${listText(profile.weakTopics)}). Fit it into ${profile.dailyStudyTime || 'my available study time'}.` },
-    { label: 'Summarize uploaded materials', prompt: 'Summarize my uploaded materials and turn the key ideas into a short study plan, quiz topics, and flashcard ideas.' },
-  ];
+  const prompts = personalizationActive
+    ? [
+        { label: 'Explain my weakest topic', prompt: `Explain my weakest topic, ${profileWeak}, in a simple ${profile.curriculum || 'high school'} style. Use my profile, goals, and preferred study style.` },
+        { label: 'Quiz me on weak topics', prompt: `Quiz me on my weak topics: ${listText(profile.weakTopics)}. Make it targeted to my ${profile.curriculum || 'curriculum'} and target grades of ${profile.targetGrades || 'my goals'}.` },
+        { label: 'Make flashcards from my notes', prompt: 'Make flashcards from my uploaded notes and saved study materials. Prioritize my weak topics and keep them concise.' },
+        { label: "Create today's revision plan", prompt: `Create today's revision plan using my upcoming tasks (${listText(profile.upcomingDeadlines)}) and weak topics (${listText(profile.weakTopics)}). Fit it into ${profile.dailyStudyTime || 'my available study time'}.` },
+        { label: 'Summarize uploaded materials', prompt: 'Summarize my uploaded materials and turn the key ideas into a short study plan, quiz topics, and flashcard ideas.' },
+      ]
+    : [
+        { label: 'Explain a topic', prompt: 'Help me understand a topic I am studying. Ask which topic, then explain it simply.' },
+        { label: 'Quiz me', prompt: 'Give me a short quiz. Ask which subject and level I want first.' },
+        { label: 'Make flashcards from my notes', prompt: 'Make concise flashcards from my uploaded notes and saved study materials.' },
+        { label: "Create today's revision plan", prompt: 'Help me create a revision plan for today. Ask which subjects and how much time I have.' },
+        { label: 'Summarize uploaded materials', prompt: 'Summarize my uploaded materials and identify the most important study points.' },
+      ];
   const provider = globalThis.LearnovaAssistant?.providers?.[state.aiProvider] || globalThis.LearnovaAssistant?.providers?.mock;
   const weak = weakestTopic();
+  const contextSignals = [
+    ['Using your notes', `${state.materials.length + state.savedPages.length} saved sources available`],
+    ...(personalizationActive
+      ? [
+          ['Student profile', `${state.studentProfile.yearGroup || `Grade ${state.studentProfile.grade}`}, ${state.studentProfile.curriculum}`],
+          ['Weak topics', toList(state.studentProfile.weakTopics).slice(0, 2).join(', ') || `${weak.subject}: ${weak.topic} (${weak.score}%)`],
+        ]
+      : []),
+    ['Current webpage', state.browserContext.title || 'No page captured yet'],
+  ];
   stage.innerHTML = `
     <section class="assistant-home-panel assistant-intro">
       <div class="assistant-intro-heading">
@@ -1439,19 +1418,15 @@ function renderAssistant() {
           </div>
         </div>
         <details class="study-context-disclosure">
-          <summary><span>Study context</span><small>4 signals active</small></summary>
+          <summary><span>Study context</span><small>${contextSignals.length} signals active</small></summary>
           <div class="context-check-list">
-            ${[
-              ['Using your notes', `${state.materials.length + state.savedPages.length} saved sources available`],
-              ['Student profile', `${state.studentProfile.yearGroup || `Grade ${state.studentProfile.grade}`}, ${state.studentProfile.curriculum}`],
-              ['Current webpage', state.browserContext.title || 'No page captured yet'],
-              ['Weak topics', toList(state.studentProfile.weakTopics).slice(0, 2).join(', ') || `${weak.subject}: ${weak.topic} (${weak.score}%)`],
-            ]
+            ${contextSignals
               .map(([title, copy]) => `<div class="context-check"><span>check</span><div><strong>${title}</strong><small>${copy}</small></div></div>`)
               .join('')}
           </div>
         </details>
       </header>
+      ${profilePersonalizationIndicator()}
       <div id="chatAttachedFiles" class="chat-attached-files">${ChatAttachedFiles()}</div>
       <div id="chat" class="chat-window">
         <div class="message assistant welcome-message">${assistantWelcomeMarkup(firstName)}</div>
@@ -1621,6 +1596,17 @@ function assistantQuickActions() {
   `;
 }
 
+function profilePersonalizationIndicator() {
+  if (!state.auth.profileComplete || state.studentProfile.personalizationEnabled === false) return '';
+  return `
+    <div class="profile-personalization-pill" role="status">
+      <span aria-hidden="true"></span>
+      <span>Personalized using your academic profile</span>
+      <button type="button" class="profile-view-link route-link" data-route="profile">View profile</button>
+    </div>
+  `;
+}
+
 function assistantWelcomeMarkup(firstName) {
   return assistantMessageMarkup({
     text: `Hi ${firstName}. I am ready to help with explanations, quizzes, revision plans, flashcards, essay feedback, and study advice. Tell me what you are working on, or use a quick action above.`,
@@ -1634,7 +1620,7 @@ function assistantMessageMarkup({ text, response = null }) {
       <span class="learnova-ai-avatar" aria-hidden="true">${assistantAiIcon()}</span>
       <div>
         <strong>Learnova AI</strong>
-        <span>Personalized with your profile</span>
+        <span>Study response</span>
       </div>
     </div>
     <div class="assistant-answer">${escapeHtml(text).replace(/\n/g, '<br>')}</div>
@@ -1874,7 +1860,9 @@ async function sendChat(prompt) {
 
   const typing = document.createElement('div');
   typing.className = 'message assistant loading-message';
-  typing.textContent = 'Checking your notes, profile, current page, and weak topics...';
+  typing.textContent = state.auth.profileComplete && state.studentProfile.personalizationEnabled !== false
+    ? 'Checking your study context and academic profile...'
+    : 'Preparing your study response...';
   chat.appendChild(typing);
   chat.scrollTop = chat.scrollHeight;
 
@@ -2403,6 +2391,25 @@ function bindFocusControls() {
 function renderProfile() {
   const profile = state.studentProfile;
   const subjectsList = toList(profile.subjects);
+  const profileData = [
+    ['Full name', profile.name],
+    ['Email', profile.email],
+    ['Grade / year', profile.yearGroup],
+    ['Age range', profile.ageRange],
+    ['Country / region', profile.countryRegion],
+    ['Curriculum', profile.curriculum],
+    ['School', profile.schoolName],
+    ['Subjects', listText(profile.subjects)],
+    ['Target grades', profile.targetGrades],
+    ['Weak topics', listText(profile.weakTopics)],
+    ['Upcoming deadlines', listText(profile.upcomingDeadlines)],
+    ['Academic goals', listText(profile.goals)],
+    ['Study style', listText(profile.studyStyle)],
+    ['Explanation style', profile.preferredExplanationStyle],
+    ['Available study time', profile.dailyStudyTime],
+    ['University / career interests', [profile.universityInterests, profile.careerInterests].filter(Boolean).join(', ')],
+    ['Extracurricular interests', profile.extracurricularInterests],
+  ].filter(([, value]) => value);
   stage.innerHTML = `
     <section class="profile-page-header">
       <div class="profile-page-identity">
@@ -2423,10 +2430,30 @@ function renderProfile() {
       </div>
     </section>
     <section class="profile-detail-grid">
-      <article class="profile-detail-section"><p class="page-kicker">Academic setup</p><div class="profile-detail-list"><div><span>School</span><strong>${escapeHtml(profile.schoolName || 'Not added')}</strong></div><div><span>Target grades</span><strong>${escapeHtml(profile.targetGrades || 'Not added')}</strong></div><div><span>Daily study time</span><strong>${escapeHtml(profile.dailyStudyTime || 'Not added')}</strong></div></div></article>
+      <article class="profile-detail-section"><p class="page-kicker">Academic setup</p><div class="profile-detail-list"><div><span>School</span><strong>${escapeHtml(profile.schoolName || 'Not added')}</strong></div><div><span>Curriculum</span><strong>${escapeHtml(profile.curriculum || 'Not added')}</strong></div><div><span>Target grades</span><strong>${escapeHtml(profile.targetGrades || 'Not added')}</strong></div><div><span>Daily study time</span><strong>${escapeHtml(profile.dailyStudyTime || 'Not added')}</strong></div></div></article>
       <article class="profile-detail-section"><p class="page-kicker">Subjects</p><div class="study-set-topics">${subjectsList.map((subject) => `<span>${escapeHtml(subject)}</span>`).join('') || '<span>No subjects added</span>'}</div></article>
       <article class="profile-detail-section"><p class="page-kicker">Goals</p><div class="profile-detail-list">${toList(profile.goals).slice(0, 4).map((goal) => `<div><strong>${escapeHtml(goal)}</strong></div>`).join('') || '<div><strong>Build a consistent study rhythm</strong></div>'}</div></article>
       <article class="profile-detail-section"><p class="page-kicker">Study preferences</p><div class="study-set-topics">${toList(profile.studyStyle).map((style) => `<span>${escapeHtml(style)}</span>`).join('') || '<span>Not added</span>'}</div></article>
+    </section>
+    <section class="profile-privacy-section" aria-labelledby="profilePrivacyTitle">
+      <div>
+        <p class="page-kicker">Privacy and AI</p>
+        <h2 id="profilePrivacyTitle">You control personalization.</h2>
+        <p>Learnova can use relevant academic details to tailor explanations, quizzes, and study plans. Passwords, authentication data, email, and profile photos are never sent to the AI.</p>
+      </div>
+      <label class="profile-personalization-control" for="profilePersonalizationEnabled">
+        <span><strong>Profile-based AI personalization</strong><small>The AI continues to work as a general study assistant when this is off.</small></span>
+        <input id="profilePersonalizationEnabled" type="checkbox" ${profile.personalizationEnabled !== false ? 'checked' : ''}>
+        <span class="settings-toggle" aria-hidden="true"></span>
+      </label>
+      <details class="saved-profile-disclosure">
+        <summary>View information saved on this device</summary>
+        <div class="saved-profile-list">
+          ${profileData.map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}
+        </div>
+        <p class="profile-data-note">No password is stored. Academic profile information stays in Chrome storage unless you clear it.</p>
+      </details>
+      <button id="clearProfileData" class="danger profile-clear-button">Clear profile data</button>
     </section>
   `;
   bindProfileSettings(renderProfile);
@@ -2468,7 +2495,7 @@ function renderSettings() {
                     ? '<button class="secondary" data-open-theme-modal>Customize</button>'
                     : name === 'Privacy' || name === 'Focus Coach' || name === 'Blocked websites' || name === 'Time limits'
                     ? '<button class="secondary route-link" data-route="focus">Configure</button>'
-                    : name === 'Account'
+                    : name === 'Account' || name === 'AI preferences'
                     ? '<button class="secondary route-link" data-route="profile">View profile</button>'
                     : '<span class="pill">Demo</span>'
                 }
@@ -2494,17 +2521,27 @@ function bindProfileSettings(renderAfter = renderProfile) {
     renderOnboarding({ mode: 'signup' });
     showToast('Logged out locally.');
   });
-  document.getElementById('uploadProfilePhoto').addEventListener('click', () => input.click());
+  document.getElementById('profilePersonalizationEnabled')?.addEventListener('change', async (event) => {
+    await updateProfile({ personalizationEnabled: event.target.checked });
+    renderAfter();
+    showToast(event.target.checked ? 'AI personalization enabled.' : 'AI personalization disabled.');
+  });
+  document.getElementById('clearProfileData')?.addEventListener('click', async () => {
+    const confirmed = confirm('Clear your local Learnova profile and return to onboarding? This cannot be undone.');
+    if (!confirmed) return;
+    await clearProfile();
+    setRoute('dashboard');
+    renderOnboarding({ mode: 'signup' });
+    showToast('Profile data cleared from this device.');
+  });
+  document.getElementById('uploadProfilePhoto')?.addEventListener('click', () => input?.click());
   document.getElementById('removeProfilePhoto')?.addEventListener('click', async () => {
-    await storage.set({
-      ...state,
-      studentProfile: { ...state.studentProfile, avatarDataUrl: '' },
-    });
+    await updateProfile({ avatarDataUrl: '' });
     updateProfileChip();
     renderAfter();
     showToast('Profile picture removed.');
   });
-  input.addEventListener('change', async (event) => {
+  input?.addEventListener('change', async (event) => {
     const [file] = [...event.target.files];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -2513,10 +2550,7 @@ function bindProfileSettings(renderAfter = renderProfile) {
     }
     const reader = new FileReader();
     reader.addEventListener('load', async () => {
-      await storage.set({
-        ...state,
-        studentProfile: { ...state.studentProfile, avatarDataUrl: reader.result },
-      });
+      await updateProfile({ avatarDataUrl: reader.result });
       updateProfileChip();
       renderAfter();
       showToast('Profile picture updated.');
@@ -2685,18 +2719,24 @@ function openCommandPalette() {
 }
 
 function onboardingDefaults() {
-  const profile = state.studentProfile || defaultState.studentProfile;
-  const savedCurriculum = profile.curriculum || 'IGCSE';
-  const curriculum = curriculumOptions.includes(savedCurriculum)
-    ? savedCurriculum
-    : curriculumOptions.find((item) => savedCurriculum.toLowerCase().includes(item.toLowerCase())) || 'IGCSE';
+  const profile = state.auth.profileComplete ? state.studentProfile : {};
+  const savedCurriculum = profile.curriculum || '';
+  const matchedCurriculum = curriculumOptions.find(
+    (item) => item !== 'Other' && savedCurriculum.toLowerCase().includes(item.toLowerCase())
+  );
+  const curriculum = profile.curriculumChoice && curriculumOptions.includes(profile.curriculumChoice)
+    ? profile.curriculumChoice
+    : matchedCurriculum || (savedCurriculum ? 'Other' : '');
   return {
-    name: profile.name === 'Alex Student' && !state.auth.isLoggedIn ? '' : profile.name,
+    name: profile.name || '',
     email: profile.email || state.auth.email || '',
     password: '',
     yearGroup: profile.yearGroup || '',
     curriculum,
+    customCurriculum: profile.customCurriculum || (curriculum === 'Other' ? savedCurriculum : ''),
     schoolName: profile.schoolName || '',
+    countryRegion: profile.countryRegion || '',
+    ageRange: profile.ageRange || '',
     subjects: listText(profile.subjects),
     targetGrades: profile.targetGrades || '',
     upcomingDeadlines: listText(profile.upcomingDeadlines),
@@ -2706,45 +2746,94 @@ function onboardingDefaults() {
     universityInterests: profile.universityInterests || '',
     extracurricularInterests: profile.extracurricularInterests || '',
     dailyStudyTime: profile.dailyStudyTime || '',
+    preferredExplanationStyle: profile.preferredExplanationStyle || '',
+    personalizationEnabled: profile.personalizationEnabled !== false,
   };
 }
 
-function onboardingField(id, label, type = 'text', placeholder = '') {
+function onboardingLabel(label, required) {
+  return `<span class="field-label-text">${escapeHtml(label)}</span><span class="field-requirement ${required ? 'required' : 'optional'}">${required ? 'Required' : 'Optional'}</span>`;
+}
+
+function onboardingField(id, label, type = 'text', placeholder = '', options = {}) {
   const value = escapeHtml(onboardingDraft[id] || '');
+  const required = Boolean(options.required);
+  const helperId = `${id}Help`;
+  const errorId = `${id}Error`;
+  const error = onboardingErrors[id] || '';
+  const describedBy = [options.helper ? helperId : '', error ? errorId : ''].filter(Boolean).join(' ');
   return `
-    <label>${label}
-      <input id="${id}" type="${type}" value="${value}" placeholder="${placeholder}">
-    </label>
+    <div class="onboarding-field ${options.wide ? 'onboarding-wide' : ''}">
+      <label for="${id}">${onboardingLabel(label, required)}</label>
+      <input id="${id}" name="${id}" type="${type}" value="${value}" placeholder="${escapeHtml(placeholder)}"
+        ${required ? 'required' : ''} ${options.autocomplete ? `autocomplete="${options.autocomplete}"` : ''}
+        ${describedBy ? `aria-describedby="${describedBy}"` : ''} aria-invalid="${Boolean(error)}">
+      ${options.helper ? `<small id="${helperId}" class="field-help">${escapeHtml(options.helper)}</small>` : ''}
+      ${error ? `<p id="${errorId}" class="field-error" role="alert">${escapeHtml(error)}</p>` : ''}
+    </div>
   `;
 }
 
-function onboardingTextarea(id, label, placeholder = '') {
+function onboardingTextarea(id, label, placeholder = '', options = {}) {
   const value = escapeHtml(onboardingDraft[id] || '');
+  const required = Boolean(options.required);
+  const helperId = `${id}Help`;
+  const errorId = `${id}Error`;
+  const error = onboardingErrors[id] || '';
+  const describedBy = [options.helper ? helperId : '', error ? errorId : ''].filter(Boolean).join(' ');
   return `
-    <label>${label}
-      <textarea id="${id}" placeholder="${placeholder}">${value}</textarea>
-    </label>
+    <div class="onboarding-field onboarding-wide">
+      <label for="${id}">${onboardingLabel(label, required)}</label>
+      <textarea id="${id}" name="${id}" placeholder="${escapeHtml(placeholder)}" ${required ? 'required' : ''}
+        ${describedBy ? `aria-describedby="${describedBy}"` : ''} aria-invalid="${Boolean(error)}">${value}</textarea>
+      ${options.helper ? `<small id="${helperId}" class="field-help">${escapeHtml(options.helper)}</small>` : ''}
+      ${error ? `<p id="${errorId}" class="field-error" role="alert">${escapeHtml(error)}</p>` : ''}
+    </div>
+  `;
+}
+
+function onboardingCurriculumField() {
+  const error = onboardingErrors.curriculum || '';
+  return `
+    <div class="onboarding-field">
+      <label for="curriculum">${onboardingLabel('School system / curriculum', true)}</label>
+      <select id="curriculum" name="curriculum" required aria-describedby="curriculumHelp ${error ? 'curriculumError' : ''}" aria-invalid="${Boolean(error)}">
+        <option value="" ${!onboardingDraft.curriculum ? 'selected' : ''} disabled>Choose your school system</option>
+        ${curriculumOptions.map((item) => `<option value="${item}" ${onboardingDraft.curriculum === item ? 'selected' : ''}>${item}</option>`).join('')}
+      </select>
+      <small id="curriculumHelp" class="field-help">Choose the option closest to your current course. You can describe another system.</small>
+      ${error ? `<p id="curriculumError" class="field-error" role="alert">${escapeHtml(error)}</p>` : ''}
+    </div>
   `;
 }
 
 function collectOnboardingStep() {
   const read = (id) => document.getElementById(id)?.value?.trim();
-  ['name', 'email', 'password', 'yearGroup', 'curriculum', 'schoolName', 'subjects', 'targetGrades', 'upcomingDeadlines', 'goals', 'weakTopics', 'universityInterests', 'extracurricularInterests', 'dailyStudyTime'].forEach((id) => {
+  ['name', 'email', 'password', 'yearGroup', 'curriculum', 'customCurriculum', 'schoolName', 'countryRegion', 'ageRange', 'subjects', 'targetGrades', 'upcomingDeadlines', 'goals', 'weakTopics', 'universityInterests', 'extracurricularInterests', 'dailyStudyTime', 'preferredExplanationStyle'].forEach((id) => {
     const value = read(id);
     if (value !== undefined) onboardingDraft[id] = value;
   });
   const checkedStyles = [...document.querySelectorAll('[name="studyStyle"]:checked')].map((input) => input.value);
   if (checkedStyles.length || document.querySelector('[name="studyStyle"]')) onboardingDraft.studyStyle = checkedStyles;
+  const personalization = document.getElementById('personalizationEnabled');
+  if (personalization) onboardingDraft.personalizationEnabled = personalization.checked;
 }
 
 function onboardingProfileFromDraft() {
+  const curriculum = onboardingDraft.curriculum === 'Other'
+    ? onboardingDraft.customCurriculum
+    : onboardingDraft.curriculum;
   return normalizeStudentProfile({
     name: onboardingDraft.name,
     email: onboardingDraft.email,
     grade: onboardingDraft.yearGroup,
     yearGroup: onboardingDraft.yearGroup,
-    curriculum: onboardingDraft.curriculum,
+    curriculumChoice: onboardingDraft.curriculum,
+    customCurriculum: onboardingDraft.customCurriculum,
+    curriculum,
     schoolName: onboardingDraft.schoolName,
+    countryRegion: onboardingDraft.countryRegion,
+    ageRange: onboardingDraft.ageRange,
     subjects: toList(onboardingDraft.subjects),
     targetGrades: onboardingDraft.targetGrades,
     upcomingDeadlines: toList(onboardingDraft.upcomingDeadlines),
@@ -2755,9 +2844,11 @@ function onboardingProfileFromDraft() {
     universityInterests: onboardingDraft.universityInterests,
     extracurricularInterests: onboardingDraft.extracurricularInterests,
     dailyStudyTime: onboardingDraft.dailyStudyTime,
-    avatarDataUrl: state.studentProfile.avatarDataUrl,
-    quizHistory: state.studentProfile.quizHistory,
-    revisionHistory: state.studentProfile.revisionHistory,
+    preferredExplanationStyle: onboardingDraft.preferredExplanationStyle,
+    personalizationEnabled: onboardingDraft.personalizationEnabled !== false,
+    avatarDataUrl: state.auth.profileComplete ? state.studentProfile.avatarDataUrl : '',
+    quizHistory: state.auth.profileComplete ? state.studentProfile.quizHistory : [],
+    revisionHistory: state.auth.profileComplete ? state.studentProfile.revisionHistory : [],
   });
 }
 
@@ -2765,7 +2856,7 @@ function onboardingStepMarkup() {
   const steps = ['Account', 'Academic Profile', 'Goals', 'Confirm'];
   const progress = `
     <div class="onboarding-progress">
-      ${steps.map((step, index) => `<span class="${index <= onboardingStep ? 'active' : ''}">${index + 1}. ${step}</span>`).join('')}
+      ${steps.map((step, index) => `<span class="${index <= onboardingStep ? 'active' : ''}" ${index === onboardingStep ? 'aria-current="step"' : ''}>${index + 1}. ${step}</span>`).join('')}
     </div>
   `;
 
@@ -2773,9 +2864,9 @@ function onboardingStepMarkup() {
     return `
       ${progress}
       <div class="onboarding-form-grid">
-        ${onboardingField('name', 'Full name', 'text', 'Alex Student')}
-        ${onboardingField('email', 'Email', 'email', 'alex@example.com')}
-        ${onboardingField('password', 'Password', 'password', 'Demo password only')}
+        ${onboardingField('name', 'Full name', 'text', 'e.g. Alex Morgan', { required: true, autocomplete: 'name' })}
+        ${onboardingField('email', 'Email', 'email', 'e.g. alex@example.com', { required: true, autocomplete: 'email', helper: 'Used only for this local demo account.' })}
+        ${onboardingMode === 'signup' ? onboardingField('password', 'Password', 'password', 'Create a demo password', { required: true, autocomplete: 'new-password', helper: 'Demo only. It is not saved or sent to the AI.' }) : ''}
       </div>
       <p class="muted">Demo authentication is stored locally only. No real auth service is connected.</p>
     `;
@@ -2785,16 +2876,17 @@ function onboardingStepMarkup() {
     return `
       ${progress}
       <div class="onboarding-form-grid">
-        ${onboardingField('yearGroup', 'Grade / Year group', 'text', 'Year 10')}
-        <label>Curriculum
-          <select id="curriculum">
-            ${curriculumOptions.map((item) => `<option value="${item}" ${onboardingDraft.curriculum === item ? 'selected' : ''}>${item}</option>`).join('')}
-          </select>
-        </label>
-        ${onboardingField('schoolName', 'School name', 'text', 'Optional')}
-        ${onboardingTextarea('subjects', 'Subjects taken', 'Mathematics, Chemistry, Physics, English')}
-        ${onboardingField('targetGrades', 'Target grades', 'text', 'A/A*, 7s, 5s, etc.')}
-        ${onboardingTextarea('upcomingDeadlines', 'Upcoming exams or major deadlines', 'Chemistry ATP revision, English essay, Math practice')}
+        ${onboardingField('yearGroup', 'Grade / Year', 'text', 'e.g. Grade 10, Year 11, First Year', { required: true, helper: 'Use the wording your school or university uses.' })}
+        ${onboardingCurriculumField()}
+        <div id="customCurriculumField" class="${onboardingDraft.curriculum === 'Other' ? '' : 'hidden'}">
+          ${onboardingField('customCurriculum', 'Your curriculum', 'text', 'e.g. Ontario Secondary School Diploma', { required: onboardingDraft.curriculum === 'Other', helper: 'Enter the name of your school system or course.' })}
+        </div>
+        ${onboardingField('schoolName', 'School name', 'text', 'e.g. Dartmouth High School', { autocomplete: 'organization' })}
+        ${onboardingField('countryRegion', 'Country or region', 'text', 'e.g. Canada, Singapore, California', { autocomplete: 'country-name' })}
+        ${onboardingField('ageRange', 'Age range', 'text', 'e.g. 14–16, 18+', { helper: 'A broad range is enough; exact age is not needed.' })}
+        ${onboardingTextarea('subjects', 'Subjects', 'e.g. Mathematics, Biology, English Literature', { required: true, helper: 'Add any subjects you study, separated by commas or new lines.' })}
+        ${onboardingField('targetGrades', 'Target grades', 'text', 'e.g. A in Chemistry, 6 in IB Biology, 4 in AP Calculus')}
+        ${onboardingTextarea('upcomingDeadlines', 'Upcoming exams or deadlines', 'e.g. Biology test on Friday, English essay due Monday')}
       </div>
     `;
   }
@@ -2803,10 +2895,10 @@ function onboardingStepMarkup() {
     return `
       ${progress}
       <div class="onboarding-form-grid">
-        ${onboardingTextarea('goals', 'Main academic goals', 'Raise Chemistry confidence, prepare for mocks')}
-        ${onboardingTextarea('weakTopics', 'Weak subjects or topics', 'Chemistry moles, Math quadratics, English analysis')}
-        <div class="onboarding-wide">
-          <strong>Preferred study style</strong>
+        ${onboardingTextarea('goals', 'Main academic goals', 'e.g. Improve my Chemistry grade before final exams')}
+        ${onboardingTextarea('weakTopics', 'Weak subjects or topics', 'e.g. Moles, quadratic equations, essay analysis')}
+        <fieldset class="onboarding-wide study-style-field">
+          <legend>${onboardingLabel('Preferred study style', false)}</legend>
           <div class="study-style-grid">
             ${studyStyleOptions
               .map(
@@ -2819,10 +2911,17 @@ function onboardingStepMarkup() {
               )
               .join('')}
           </div>
-        </div>
-        ${onboardingField('universityInterests', 'University/career interests', 'text', 'Medicine, engineering, law, design...')}
-        ${onboardingField('extracurricularInterests', 'Extracurricular interests', 'text', 'Debate, football, coding, music...')}
-        ${onboardingField('dailyStudyTime', 'Daily available study time', 'text', '45 minutes')}
+          <small class="field-help">e.g. short quizzes, flashcards, step-by-step explanations</small>
+        </fieldset>
+        ${onboardingField('preferredExplanationStyle', 'Preferred explanation style', 'text', 'e.g. Simple first, then exam terminology', { wide: true })}
+        ${onboardingField('universityInterests', 'University or career interests', 'text', 'e.g. Computer Science, Medicine, Business')}
+        ${onboardingField('extracurricularInterests', 'Extracurricular interests', 'text', 'e.g. debate, football, coding, music')}
+        ${onboardingField('dailyStudyTime', 'Available study time', 'text', 'e.g. 45 minutes on weekdays')}
+        <label class="onboarding-wide personalization-choice" for="personalizationEnabled">
+          <input id="personalizationEnabled" type="checkbox" ${onboardingDraft.personalizationEnabled !== false ? 'checked' : ''}>
+          <span class="personalization-switch" aria-hidden="true"></span>
+          <span><strong>Personalize AI responses with my academic profile</strong><small>Learnova sends only relevant academic details. Passwords, account data, and profile photos are never sent.</small></span>
+        </label>
       </div>
     `;
   }
@@ -2830,7 +2929,7 @@ function onboardingStepMarkup() {
   const profile = onboardingProfileFromDraft();
   return `
     ${progress}
-    <div class="confirm-grid">
+    <div class="confirm-grid" tabindex="-1">
       <div class="confirm-card">
         <p class="eyebrow">Student</p>
         <h2>${escapeHtml(profile.name || 'Student')}</h2>
@@ -2849,8 +2948,36 @@ function onboardingStepMarkup() {
         <p class="eyebrow">Learnova will prioritize</p>
         <p class="muted">${escapeHtml(toList(profile.studyStyle).join(', ') || 'quizzes, flashcards, and simple explanations')}</p>
       </div>
+      <div class="confirm-card confirm-privacy">
+        <p class="eyebrow">AI personalization</p>
+        <h3>${profile.personalizationEnabled ? 'On' : 'Off'}</h3>
+        <p class="muted">${profile.personalizationEnabled ? 'Relevant academic profile details will shape AI responses.' : 'Learnova AI will work as a general study assistant.'}</p>
+      </div>
     </div>
   `;
+}
+
+function validateOnboardingStep(step) {
+  const errors = {};
+  if (step === 0) {
+    if (!onboardingDraft.name) errors.name = 'Enter your full name to continue.';
+    if (!onboardingDraft.email) errors.email = 'Enter your email address to continue.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onboardingDraft.email)) {
+      errors.email = 'Use an email format like name@example.com.';
+    }
+    if (onboardingMode === 'signup' && !onboardingDraft.password) {
+      errors.password = 'Create a demo password to continue. It will not be stored.';
+    }
+  }
+  if (step === 1 || step === 3) {
+    if (!onboardingDraft.yearGroup) errors.yearGroup = 'Enter your grade, year, or current level.';
+    if (!onboardingDraft.curriculum) errors.curriculum = 'Choose your school system or curriculum.';
+    if (onboardingDraft.curriculum === 'Other' && !onboardingDraft.customCurriculum) {
+      errors.customCurriculum = 'Enter the name of your curriculum or school system.';
+    }
+    if (!toList(onboardingDraft.subjects).length) errors.subjects = 'Add at least one subject you are studying.';
+  }
+  return errors;
 }
 
 function setOnboardingSubmissionState(button, loading) {
@@ -2877,9 +3004,11 @@ function showOnboardingError(message) {
 }
 
 function renderOnboarding(options = {}) {
+  onboardingReturnFocus = document.activeElement;
   onboardingMode = options.mode || (state.auth.profileComplete ? 'edit' : 'signup');
   onboardingStep = options.step ?? 0;
   onboardingDraft = { ...onboardingDefaults(), ...(options.prefill || {}) };
+  onboardingErrors = {};
   document.body.classList.add('onboarding-active');
   drawOnboarding();
 }
@@ -2892,44 +3021,62 @@ function drawOnboarding() {
         <aside class="onboarding-brand">
           <span class="logo-mark onboarding-logo" aria-hidden="true"></span>
           <p class="eyebrow">Learnova</p>
-          <h1>Your AI-powered academic operating system</h1>
+          <h1 id="onboardingTitle">Your AI-powered academic operating system</h1>
           <p class="muted">Set up your profile once. Learnova uses it to personalize your dashboard, study plan, and assistant responses.</p>
           <div class="onboarding-signal">
             <strong>${onboardingMode === 'edit' ? 'Editing profile' : 'Local demo login'}</strong>
             <small>Your data stays in this Chrome extension prototype.</small>
           </div>
         </aside>
-        <div class="onboarding-panel">
+        <form id="onboardingForm" class="onboarding-panel" novalidate>
           ${onboardingStepMarkup()}
           <div class="onboarding-actions">
-            ${onboardingStep > 0 ? '<button id="onboardingBack" class="secondary">Back</button>' : ''}
-            ${onboardingMode === 'edit' ? '<button id="onboardingCancel" class="ghost">Cancel</button>' : ''}
-            <button id="onboardingNext" class="primary">${onboardingStep === 3 ? 'Enter Learnova' : 'Continue'}</button>
+            ${onboardingStep > 0 ? '<button type="button" id="onboardingBack" class="secondary">Back</button>' : ''}
+            ${onboardingMode === 'edit' ? '<button type="button" id="onboardingCancel" class="ghost">Cancel</button>' : ''}
+            <button type="submit" id="onboardingNext" class="primary">${onboardingStep === 3 ? (onboardingMode === 'edit' ? 'Save profile' : 'Enter Learnova') : 'Continue'}</button>
           </div>
           <p id="onboardingError" class="onboarding-save-error hidden" role="alert"></p>
-        </div>
+        </form>
       </div>
     </section>
   `;
 
   document.getElementById('onboardingBack')?.addEventListener('click', () => {
     collectOnboardingStep();
+    onboardingErrors = {};
     onboardingStep -= 1;
     drawOnboarding();
   });
   document.getElementById('onboardingCancel')?.addEventListener('click', () => {
     onboarding.classList.add('hidden');
     document.body.classList.remove('onboarding-active');
+    onboardingReturnFocus?.focus?.();
+  });
+  document.getElementById('curriculum')?.addEventListener('change', (event) => {
+    const selectedCurriculum = event.target.value;
+    collectOnboardingStep();
+    onboardingDraft.curriculum = selectedCurriculum;
+    onboardingErrors = {};
+    drawOnboarding();
+    requestAnimationFrame(() => {
+      (selectedCurriculum === 'Other'
+        ? document.getElementById('customCurriculum')
+        : document.getElementById('curriculum'))?.focus();
+    });
   });
   const nextButton = document.getElementById('onboardingNext');
-  nextButton.addEventListener('click', async () => {
+  document.getElementById('onboardingForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
     if (nextButton.disabled) return;
     collectOnboardingStep();
-    if (onboardingStep === 0 && (!onboardingDraft.name || !onboardingDraft.email || (onboardingMode !== 'edit' && !onboardingDraft.password))) {
-      showToast(onboardingMode === 'edit' ? 'Add your name and email to continue.' : 'Add your name, email, and demo password to continue.');
+    onboardingErrors = validateOnboardingStep(onboardingStep);
+    if (Object.keys(onboardingErrors).length) {
+      drawOnboarding();
+      requestAnimationFrame(() => document.querySelector('[aria-invalid="true"]')?.focus());
       return;
     }
     if (onboardingStep < 3) {
+      onboardingErrors = {};
       onboardingStep += 1;
       drawOnboarding();
       return;
@@ -2963,6 +3110,12 @@ function drawOnboarding() {
       setOnboardingSubmissionState(nextButton, false);
       showOnboardingError('Your profile was saved, but the workspace could not open. Please try again.');
     }
+  });
+  requestAnimationFrame(() => {
+    const focusTarget = onboardingStep === 3
+      ? onboarding.querySelector('.confirm-grid')
+      : onboarding.querySelector('.onboarding-form-grid input:not([type="checkbox"]), .onboarding-form-grid select, .onboarding-form-grid textarea');
+    focusTarget?.focus();
   });
 }
 

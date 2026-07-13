@@ -68,6 +68,24 @@ select {
   animation: enter 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
+.focus-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.focus-brand img {
+  display: block;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+}
+
+.focus-brand strong {
+  font-size: 16px;
+}
+
 @keyframes enter {
   from {
     opacity: 0;

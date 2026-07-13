@@ -2387,6 +2387,12 @@ textarea:focus {
   box-shadow: 0 12px 32px rgba(77, 227, 255, 0.12);
 }
 
+.style-check input:checked + span::before {
+  content: "\2713";
+  margin-right: 7px;
+  font-weight: 900;
+}
+
 .confirm-grid,
 .context-grid {
   display: grid;
@@ -2657,7 +2663,7 @@ textarea:focus {
 .bar-chart {
   display: grid;
   min-height: 220px;
-  grid-template-columns: repeat(8, minmax(28px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(18px, 1fr));
   gap: 10px;
   align-items: end;
   margin-top: 16px;
@@ -3205,6 +3211,277 @@ textarea:focus {
 
   h1 {
     font-size: 44px;
+  }
+}
+
+.settings-row small {
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+/* Accessible onboarding fields and student-controlled profile personalization. */
+.onboarding-field {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 8px;
+}
+
+.onboarding-field > label,
+.study-style-field > legend {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.field-requirement {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.field-requirement.required {
+  color: var(--accent);
+}
+
+.field-requirement.optional,
+.field-help {
+  color: var(--muted);
+}
+
+.field-help {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--danger, #ff9aae);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.onboarding-form-grid [aria-invalid="true"] {
+  border-color: var(--danger, #ff7a9a);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger, #ff7a9a) 20%, transparent);
+}
+
+.onboarding-form-grid input:focus-visible,
+.onboarding-form-grid select:focus-visible,
+.onboarding-form-grid textarea:focus-visible,
+.style-check input:focus-visible + span,
+.personalization-choice input:focus-visible + .personalization-switch,
+.profile-personalization-control input:focus-visible + .settings-toggle {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 3px;
+}
+
+#customCurriculumField {
+  min-width: 0;
+}
+
+.study-style-field {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.personalization-choice {
+  display: grid !important;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px !important;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 18px;
+  color: var(--text) !important;
+  cursor: pointer;
+}
+
+.personalization-choice > input,
+.profile-personalization-control > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.personalization-switch,
+.settings-toggle {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 26px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  transition: background var(--motion-fast), border-color var(--motion-fast);
+}
+
+.personalization-switch::after,
+.settings-toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform var(--motion-fast), background var(--motion-fast);
+}
+
+.personalization-choice input:checked + .personalization-switch,
+.profile-personalization-control input:checked + .settings-toggle {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.personalization-choice input:checked + .personalization-switch::after,
+.profile-personalization-control input:checked + .settings-toggle::after {
+  background: var(--accent);
+  transform: translateX(20px);
+}
+
+.personalization-choice > span:last-child,
+.profile-personalization-control > span:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.personalization-choice small,
+.profile-personalization-control small {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.profile-personalization-pill {
+  margin: 0 0 2px;
+  font-size: 13px;
+}
+
+.profile-view-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.profile-privacy-section {
+  display: grid;
+  gap: 22px;
+  margin-top: var(--space-8);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: var(--space-8) 0;
+}
+
+.profile-privacy-section > div:first-child {
+  max-width: 760px;
+}
+
+.profile-privacy-section h2 {
+  margin: 4px 0 8px;
+}
+
+.profile-privacy-section p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.profile-personalization-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 820px;
+  cursor: pointer;
+}
+
+.saved-profile-disclosure {
+  max-width: 820px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 18px;
+}
+
+.saved-profile-disclosure summary {
+  width: fit-content;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.saved-profile-list {
+  display: grid;
+  gap: 0;
+  margin-top: 16px;
+}
+
+.saved-profile-list > div {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.45fr) minmax(0, 1fr);
+  gap: 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 12px 0;
+}
+
+.saved-profile-list span,
+.profile-data-note {
+  color: var(--muted);
+}
+
+.saved-profile-list strong {
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.profile-clear-button {
+  width: fit-content;
+}
+
+@media (max-width: 620px) {
+  .onboarding-field > label,
+  .study-style-field > legend {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .personalization-choice,
+  .saved-profile-list > div {
+    grid-template-columns: 1fr;
+  }
+
+  .personalization-choice {
+    justify-items: start;
+  }
+
+  .profile-personalization-control {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .personalization-switch,
+  .settings-toggle,
+  .personalization-switch::after,
+  .settings-toggle::after {
+    transition: none;
   }
 }
 
@@ -4983,6 +5260,7 @@ textarea {
 
 /* Layout safety fixes for compact extension windows. */
 .command-top > *,
+.stage > *,
 .onboarding-panel,
 .onboarding-form-grid > *,
 .confirm-card {
@@ -5098,5 +5376,25 @@ textarea {
 
   .onboarding {
     padding: 16px;
+  }
+}
+
+@media (max-width: 760px) {
+  .logo-button,
+  .rail-utility {
+    display: grid;
+    flex: 0 0 46px;
+  }
+
+  .rail-nav {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 auto;
+  }
+
+  .rail-utility {
+    margin-top: 0;
+    margin-left: 0;
   }
 }

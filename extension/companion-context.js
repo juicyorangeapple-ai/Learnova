@@ -16,7 +16,10 @@
   }
 
   function build({ state = {}, route = 'dashboard', studySet = null }) {
-    const profile = state.studentProfile || {};
+    const savedProfile = state.studentProfile || {};
+    const profile = state.auth?.profileComplete && savedProfile.personalizationEnabled !== false
+      ? savedProfile
+      : {};
     const weak = weakest(state);
     const uploads = state.assistantUploads || [];
     const sets = state.materials || [];
