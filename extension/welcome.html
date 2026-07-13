@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Learnova</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon32.png" />
+    <script src="learnova-config.js"></script>
+    <script src="theme-manager.js"></script>
+    <link rel="stylesheet" href="welcome.css" />
+  </head>
+  <body>
+    <main class="welcome-shell">
+      <section class="welcome-card" aria-labelledby="welcomeTitle">
+        <div class="brand-lockup">
+          <img src="icons/icon128.png" alt="" width="64" height="64" />
+          <span>Learnova</span>
+        </div>
+
+        <div class="success-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" role="presentation">
+            <path d="m14.5 24.5 6.2 6.2L34 17.4" />
+          </svg>
+        </div>
+
+        <p class="eyebrow">Chrome extension ready</p>
+        <h1 id="welcomeTitle">Learnova has been added to Chrome.</h1>
+        <p class="intro">Click the Learnova icon anytime to open your study workspace.</p>
+
+        <div class="steps" aria-label="Getting started">
+          <article>
+            <span>1</span>
+            <div><strong>Pin Learnova</strong><p>Keep the companion within reach in your Chrome toolbar.</p></div>
+          </article>
+          <article>
+            <span>2</span>
+            <div><strong>Open your workspace</strong><p>Continue studying, ask AI, or upload material from the popup.</p></div>
+          </article>
+        </div>
+
+        <div class="welcome-actions">
+          <button id="openWebsite" class="primary-action" type="button" disabled>
+            <span><strong>Open Learnova Workspace</strong><small id="destinationLabel">Checking connection...</small></span>
+            <i aria-hidden="true">&#8599;</i>
+          </button>
+          <button id="openExtension" class="secondary-action" type="button">Use extension workspace</button>
+        </div>
+
+        <div class="connection-row">
+          <p id="websiteStatus" class="website-status checking" role="status"><i aria-hidden="true"></i><span>Checking Learnova...</span></p>
+          <button id="retryConnection" type="button">Retry</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="welcome.js"></script>
+  </body>
+</html>

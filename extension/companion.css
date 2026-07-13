@@ -1,0 +1,203 @@
+/* Learnova's floating study companion: one lightweight, route-aware layer. */
+.learnova-companion {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 24;
+  width: 78px;
+  height: 78px;
+  color: var(--text);
+  font-family: inherit;
+  transition: filter 220ms ease;
+}
+
+.companion-orb {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 78px;
+  height: 78px;
+  place-items: center;
+  border: 0;
+  border-radius: 28px;
+  padding: 0;
+  background: color-mix(in srgb, var(--surface-raised, var(--panel)) 92%, var(--accent) 8%);
+  box-shadow: 0 16px 36px color-mix(in srgb, var(--bg) 72%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 36%, transparent);
+  cursor: grab;
+  isolation: isolate;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+  touch-action: none;
+}
+
+.companion-orb:hover,
+.learnova-companion.is-open .companion-orb {
+  transform: translateY(-3px) scale(1.035);
+  box-shadow: 0 20px 42px color-mix(in srgb, var(--bg) 74%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent) 62%, transparent), 0 0 30px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.companion-orb:focus-visible,
+.companion-action:focus-visible,
+.companion-tutor-link:focus-visible,
+.companion-close:focus-visible,
+.companion-hide:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 66%, white);
+  outline-offset: 3px;
+}
+
+.companion-mascot {
+  width: 70px;
+  height: 70px;
+  overflow: visible;
+  animation: companionFloat 3.8s ease-in-out infinite;
+}
+
+.companion-shadow { fill: color-mix(in srgb, var(--bg) 66%, transparent); }
+.companion-body { fill: url(#companionShell); stroke: color-mix(in srgb, white 34%, transparent); stroke-width: 1.4; }
+.companion-wing { fill: color-mix(in srgb, var(--accent-2) 55%, var(--surface-raised)); stroke: color-mix(in srgb, var(--accent) 66%, transparent); stroke-width: 1.5; stroke-linecap: round; }
+.companion-face { fill: color-mix(in srgb, var(--bg) 78%, #111 22%); stroke: color-mix(in srgb, white 22%, transparent); stroke-width: 1.2; }
+.companion-eyes { fill: #fff8ee; transform-origin: center; animation: companionBlink 5.7s ease-in-out infinite; }
+.companion-mouth,
+.companion-antenna,
+.companion-chest { fill: none; stroke: #fff8ee; stroke-width: 1.8; stroke-linecap: round; }
+.companion-signal { fill: #fff8ee; filter: drop-shadow(0 0 5px color-mix(in srgb, white 75%, transparent)); }
+
+.companion-state-dots {
+  position: absolute;
+  z-index: 3;
+  right: 8px;
+  bottom: 8px;
+  display: none;
+  gap: 3px;
+  align-items: center;
+  min-width: 24px;
+  height: 17px;
+  border-radius: 999px;
+  padding: 0 5px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+}
+
+.companion-state-dots i { width: 3px; height: 3px; border-radius: 50%; background: var(--accent); animation: companionDot 900ms ease-in-out infinite; }
+.companion-state-dots i:nth-child(2) { animation-delay: 130ms; }
+.companion-state-dots i:nth-child(3) { animation-delay: 260ms; }
+.learnova-companion[data-state="thinking"] .companion-state-dots { display: flex; }
+.learnova-companion[data-state="offline"] { filter: saturate(0.45); }
+.learnova-companion[data-state="offline"] .companion-orb { box-shadow: 0 14px 32px color-mix(in srgb, var(--bg) 74%, transparent), 0 0 0 1px color-mix(in srgb, var(--muted) 58%, transparent); }
+.learnova-companion[data-state="speaking"] .companion-mouth { animation: companionSpeak 280ms ease-in-out 3 alternate; }
+.learnova-companion[data-state="celebrating"] .companion-mascot { animation: companionCelebrate 760ms cubic-bezier(0.2, 0.8, 0.25, 1); }
+
+.companion-panel {
+  position: absolute;
+  right: 0;
+  bottom: 92px;
+  display: grid;
+  width: min(332px, calc(100vw - 34px));
+  gap: 14px;
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  border-radius: 22px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--modal-bg, var(--surface-raised)) 94%, var(--accent) 6%);
+  box-shadow: 0 24px 55px color-mix(in srgb, var(--bg) 78%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px) scale(0.97);
+  transform-origin: right bottom;
+  transition: opacity 180ms ease, transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.learnova-companion.is-open .companion-panel { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+.companion-panel-header { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.companion-panel-header > div { display: grid; gap: 3px; }
+.companion-panel-header strong { font-size: 15px; letter-spacing: -0.01em; }
+.companion-panel-kicker { color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: 0.11em; }
+.companion-close,
+.companion-proactive-dismiss {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 21px;
+  line-height: 1;
+}
+
+.companion-close:hover,
+.companion-proactive-dismiss:hover { background: color-mix(in srgb, var(--text) 11%, transparent); color: var(--text); }
+.companion-message { margin: 0; color: var(--text); font-size: 15px; line-height: 1.5; }
+.companion-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.companion-action {
+  min-height: 38px;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  border-radius: 11px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--text) 4.5%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: left;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.companion-action:hover { border-color: color-mix(in srgb, var(--accent) 42%, transparent); background: var(--accent-soft); transform: translateY(-1px); }
+.companion-tutor-link { border: 0; padding: 2px 0 0; background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 13px; font-weight: 750; text-align: left; }
+.companion-tutor-link span { transition: transform 160ms ease; display: inline-block; }
+.companion-tutor-link:hover span { transform: translateX(3px); }
+.companion-hide { justify-self: start; border: 0; padding: 2px 0 0; background: transparent; color: var(--faint, var(--muted)); cursor: pointer; font: inherit; font-size: 11px; }
+.companion-hide:hover { color: var(--text); }
+
+.companion-proactive {
+  position: absolute;
+  right: 2px;
+  bottom: 92px;
+  display: flex;
+  width: min(270px, calc(100vw - 34px));
+  gap: 10px;
+  align-items: start;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  border-radius: 16px;
+  padding: 12px 12px 12px 14px;
+  background: color-mix(in srgb, var(--modal-bg, var(--surface-raised)) 92%, var(--accent) 8%);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--bg) 72%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px) scale(0.97);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.companion-proactive.is-visible { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+.companion-proactive-copy { flex: 1; }
+
+.learnova-companion.is-dragging,
+.learnova-companion.is-dragging * { cursor: grabbing !important; }
+.learnova-companion.is-dragging .companion-orb { transition: none; }
+.learnova-companion[data-animation="reduced"] .companion-mascot { animation-duration: 7s; }
+.learnova-companion[data-animation="reduced"] .companion-eyes { animation-duration: 10s; }
+.learnova-companion[data-animation="off"] *,
+.learnova-companion[data-animation="off"] { animation: none !important; transition-duration: 0ms !important; }
+
+@keyframes companionFloat { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-4px) rotate(1deg); } }
+@keyframes companionBlink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.14); } }
+@keyframes companionDot { 0%, 100% { opacity: 0.3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
+@keyframes companionSpeak { from { transform: scaleY(0.7); } to { transform: scaleY(1.25); } }
+@keyframes companionCelebrate { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-9px) rotate(-7deg); } 60% { transform: translateY(-2px) rotate(6deg); } }
+
+@media (max-width: 760px) {
+  .learnova-companion { right: 16px; bottom: 16px; }
+  .companion-panel { right: 0; bottom: 86px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .learnova-companion *,
+  .learnova-companion { animation: none !important; transition-duration: 0.01ms !important; }
+}

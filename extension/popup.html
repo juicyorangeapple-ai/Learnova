@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Learnova</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon32.png" />
+    <script src="learnova-config.js"></script>
+    <script src="theme-manager.js"></script>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="popup-header">
+        <div class="popup-brand">
+          <img src="icons/icon48.png" alt="" width="42" height="42" />
+          <div><strong>Learnova</strong><span>Chrome companion</span></div>
+        </div>
+        <button id="connectionStatus" class="connection-status checking" type="button" aria-live="polite" title="Check website connection">
+          <i aria-hidden="true"></i><span>Checking connection</span>
+        </button>
+      </header>
+
+      <section class="launcher-hero">
+        <span class="eyebrow">Your AI study companion</span>
+        <h1>Your workspace, one click away.</h1>
+        <p>Jump back into study, ask Learnova, or save what you are viewing.</p>
+      </section>
+
+      <button id="openWorkspace" class="workspace-button" type="button">
+        <span><strong>Open Learnova Workspace</strong><small id="workspaceDestination">Development workspace</small></span>
+        <i aria-hidden="true">&#8599;</i>
+      </button>
+
+      <section class="website-actions" aria-label="Learnova website quick actions">
+        <button type="button" data-website-route="assistant"><span aria-hidden="true">&#10022;</span>Ask Learnova</button>
+        <button type="button" data-website-route="upload"><span aria-hidden="true">+</span>Upload Study Material</button>
+        <button type="button" data-website-route="continue"><span aria-hidden="true">&#9654;</span>Continue Studying</button>
+      </section>
+
+      <details class="popup-disclosure capture-disclosure">
+        <summary><span><strong>Save the current page</strong><small>Capture study context without leaving this tab</small></span><i aria-hidden="true">+</i></summary>
+        <div class="disclosure-content">
+          <section class="detected-card">
+            <span class="page-pulse" aria-hidden="true"></span>
+            <div><small>Detected page</small><strong id="pageTitle">Detecting page...</strong><span id="pageUrl">Loading URL</span></div>
+          </section>
+
+          <section class="capture-form">
+            <label>Subject<select id="subject"></select></label>
+            <label>Topic<select id="topic"></select></label>
+            <label class="wide">Study note<textarea id="notes" placeholder="Add a memory hook or why this page matters."></textarea></label>
+          </section>
+
+          <button id="save" class="save-button" type="button">Save to Learnova</button>
+
+          <section class="capture-actions" aria-label="Saved page actions">
+            <button type="button" data-action="Summarize Page">Summarize</button>
+            <button type="button" data-action="Turn Into Flashcards">Flashcards</button>
+            <button type="button" data-action="Generate Quiz">Quiz</button>
+          </section>
+        </div>
+      </details>
+
+      <details class="popup-disclosure tools-disclosure">
+        <summary><span><strong>Extension tools</strong><small>Focus controls and offline workspace</small></span><i aria-hidden="true">+</i></summary>
+        <div class="internal-actions">
+          <button type="button" data-internal-route="dashboard">Extension workspace</button>
+          <button type="button" data-internal-route="quiz">Quiz generator</button>
+          <button type="button" data-internal-route="flashcards">Flashcards</button>
+          <button type="button" data-internal-route="focus">Focus controls</button>
+          <button type="button" data-internal-route="settings">Settings</button>
+          <button type="button" data-internal-route="pricing">Pricing</button>
+        </div>
+      </details>
+
+      <p id="status" class="status" role="status"></p>
+      <footer><span>Study data stays on this device in the prototype.</span><button id="retryConnection" type="button">Retry</button></footer>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

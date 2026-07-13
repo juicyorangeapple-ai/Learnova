@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Learnova Studio</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon32.png" />
+    <script src="theme-manager.js"></script>
+    <link rel="stylesheet" href="dashboard.css" />
+    <link rel="stylesheet" href="companion.css" />
+    <link rel="stylesheet" href="onboarding-transition.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <div class="studio-shell">
+      <aside class="rail" aria-label="Learnova navigation">
+        <button class="logo-button route-link" data-route="dashboard" aria-label="Learnova dashboard">
+          <span class="logo-mark" aria-hidden="true"></span>
+        </button>
+        <nav id="railNav" class="rail-nav"></nav>
+        <button id="resetOnboarding" class="rail-utility" title="Replay onboarding" aria-label="Replay onboarding">
+          <svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 12a8 8 0 1 0 2.3-5.7"></path>
+            <path d="M4 4v6h6"></path>
+          </svg>
+        </button>
+      </aside>
+
+      <section class="workspace">
+        <header class="command-top">
+          <div class="workspace-label">
+            <span class="label-dot"></span>
+            Learnova Extension Workspace
+          </div>
+          <button id="commandButton" class="command-button">
+            <span class="command-dot"></span>
+            <span id="commandHint">Search pages, topics, and actions</span>
+            <kbd>Cmd K</kbd>
+          </button>
+          <button id="profileButton" class="student-chip" aria-label="Open profile settings">
+            <span id="profileAvatar" class="avatar">AS</span>
+            <span>
+              <strong id="profileName">Alex Student</strong>
+              <small><span id="profileGrade">Year 10</span> - <span id="planLabel">Plus</span></small>
+            </span>
+          </button>
+        </header>
+
+        <main class="content-grid">
+          <section id="stage" class="stage" aria-live="polite"></section>
+          <aside id="insightPanel" class="insight-panel"></aside>
+        </main>
+      </section>
+    </div>
+
+    <div id="onboarding" class="onboarding hidden" role="dialog" aria-modal="true"></div>
+    <div id="modal" class="modal hidden" role="dialog" aria-modal="true"></div>
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="learnova-config.js"></script>
+    <script src="assistant-orchestrator.js"></script>
+    <script src="companion-context.js"></script>
+    <script src="companion-actions.js"></script>
+    <script src="companion.js"></script>
+    <script src="onboarding-transition.js"></script>
+    <script src="dashboard.js"></script>
+  </body>
+</html>

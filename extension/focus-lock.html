@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Learnova Focus Lock</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon32.png" />
+    <script src="theme-manager.js"></script>
+    <link rel="stylesheet" href="focus-lock.css" />
+  </head>
+  <body>
+    <main class="lock-shell">
+      <section class="lock-card">
+        <p class="eyebrow">Learnova Focus Lock</p>
+        <h1>This website is temporarily paused.</h1>
+        <p>You chose Focus Lock. Learnova is holding this page gently while you decide what you need next.</p>
+
+        <div class="site-line">
+          <span id="siteName">This website</span>
+          <strong>Paused now</strong>
+        </div>
+
+        <div class="button-grid">
+          <button id="startQuiz" class="primary">Start Quiz</button>
+          <button id="openPlanner" class="secondary">Open Revision Planner</button>
+          <button id="snooze" class="secondary">Snooze</button>
+          <button id="emergency" class="danger">I actually need this website.</button>
+        </div>
+
+        <label>
+          Override duration
+          <select id="duration">
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="45">45 minutes</option>
+            <option value="60">60 minutes</option>
+          </select>
+        </label>
+
+        <p class="privacy">Your browsing information stays on your device in this prototype and is never shared.</p>
+      </section>
+    </main>
+    <script src="focus-lock.js"></script>
+  </body>
+</html>

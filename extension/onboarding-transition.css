@@ -1,0 +1,218 @@
+.onboarding-transition-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  opacity: 0;
+  visibility: hidden;
+  background:
+    radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 26rem),
+    color-mix(in srgb, var(--bg) 96%, transparent);
+  backdrop-filter: blur(18px);
+  transition: opacity 280ms ease, visibility 280ms ease;
+}
+
+.onboarding-transition-layer.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.onboarding-transition-layer.is-leaving {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.onboarding-transition-content {
+  display: grid;
+  width: min(480px, 100%);
+  justify-items: center;
+  text-align: center;
+}
+
+.onboarding-transition-mark {
+  position: relative;
+  display: grid;
+  width: 70px;
+  height: 70px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--panel-strong) 88%, transparent);
+  box-shadow: 0 22px 70px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.onboarding-transition-mark::before,
+.onboarding-transition-mark::after,
+.onboarding-transition-mark i {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  content: '';
+  background: var(--accent);
+  animation: onboardingSetupPulse 1.05s ease-in-out infinite;
+}
+
+.onboarding-transition-mark::before { --setup-x: -17px; animation-delay: -210ms; }
+.onboarding-transition-mark i { --setup-x: 0px; animation-delay: -105ms; }
+.onboarding-transition-mark::after { --setup-x: 17px; }
+
+.onboarding-transition-kicker {
+  margin: 24px 0 8px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.onboarding-transition-content h2 {
+  min-height: 1.3em;
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(26px, 4vw, 38px);
+  line-height: 1.18;
+  transition: opacity 110ms ease, transform 110ms ease;
+}
+
+.onboarding-transition-content h2.is-changing {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.onboarding-transition-progress {
+  display: flex;
+  gap: 8px;
+  margin-top: 26px;
+}
+
+.onboarding-transition-progress span {
+  width: 28px;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  transition: background 180ms ease, transform 180ms ease;
+}
+
+.onboarding-transition-progress span.is-active {
+  transform: scaleX(1.08);
+  background: var(--accent);
+}
+
+.onboarding-card {
+  transition: opacity 260ms ease, transform 260ms ease;
+}
+
+.onboarding-card.is-completing {
+  opacity: 0;
+  transform: scale(0.98);
+  pointer-events: none;
+}
+
+.onboarding-submit-spinner {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  border: 2px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: onboardingSubmitSpin 700ms linear infinite;
+}
+
+.onboarding-actions .is-submitting {
+  display: inline-flex;
+  min-width: 218px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: wait;
+}
+
+.onboarding-save-error {
+  margin: 0;
+  border-left: 2px solid #ef7b72;
+  padding: 8px 0 8px 12px;
+  color: #ef9a93;
+  font-size: 14px;
+}
+
+.onboarding:not(.hidden) ~ .learnova-companion,
+body.onboarding-active .learnova-companion,
+body.onboarding-completing .learnova-companion {
+  opacity: 0 !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.dashboard-first-entry .studio-shell {
+  animation: dashboardBackgroundIn 420ms ease both;
+}
+
+body.dashboard-first-entry .rail {
+  animation: dashboardRailIn 390ms ease 520ms both;
+}
+
+body.dashboard-first-entry #stage > * {
+  animation: dashboardSectionIn 420ms ease both;
+}
+
+body.dashboard-first-entry #stage > :nth-child(1) { animation-delay: 100ms; }
+body.dashboard-first-entry #stage > :nth-child(2) { animation-delay: 190ms; }
+body.dashboard-first-entry #stage > :nth-child(3) { animation-delay: 280ms; }
+body.dashboard-first-entry #stage > :nth-child(n + 4) { animation-delay: 360ms; }
+
+body.dashboard-first-entry .home-stage-copy {
+  animation: dashboardGreetingIn 420ms ease 90ms both;
+}
+
+body.dashboard-first-entry .home-intent-grid .home-study-action:first-child {
+  animation: dashboardPrimaryIn 360ms ease 230ms both;
+}
+
+body.dashboard-first-entry .learnova-companion {
+  animation: dashboardCompanionIn 360ms ease 760ms both;
+}
+
+body.dashboard-returning-entry .studio-shell {
+  animation: dashboardReturningIn 180ms ease both;
+}
+
+.dashboard-entry-focus:focus {
+  outline: none;
+}
+
+@keyframes onboardingSetupPulse {
+  0%, 70%, 100% { opacity: 0.38; transform: translate(var(--setup-x, 0), 0) scale(0.82); }
+  35% { opacity: 1; transform: translate(var(--setup-x, 0), -3px) scale(1); }
+}
+
+@keyframes onboardingSubmitSpin { to { transform: rotate(360deg); } }
+@keyframes dashboardBackgroundIn { from { opacity: 0; } }
+@keyframes dashboardRailIn { from { opacity: 0; transform: translateY(10px); } }
+@keyframes dashboardSectionIn { from { opacity: 0; transform: translateY(14px) scale(0.99); } }
+@keyframes dashboardGreetingIn { from { opacity: 0; transform: translateY(12px); } }
+@keyframes dashboardPrimaryIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@keyframes dashboardCompanionIn { from { opacity: 0; } }
+@keyframes dashboardReturningIn { from { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-transition-layer,
+  .onboarding-transition-content h2,
+  .onboarding-card {
+    transition-duration: 1ms;
+  }
+
+  .onboarding-transition-mark::before,
+  .onboarding-transition-mark::after,
+  .onboarding-transition-mark i,
+  .onboarding-submit-spinner,
+  body.dashboard-first-entry .studio-shell,
+  body.dashboard-first-entry .rail,
+  body.dashboard-first-entry #stage > *,
+  body.dashboard-first-entry .home-stage-copy,
+  body.dashboard-first-entry .home-intent-grid .home-study-action:first-child,
+  body.dashboard-first-entry .learnova-companion,
+  body.dashboard-returning-entry .studio-shell {
+    animation: none;
+  }
+}
