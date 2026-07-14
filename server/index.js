@@ -2,6 +2,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
+import multer from 'multer';
 import OpenAI from 'openai';
 import crypto from 'node:crypto';
 import path from 'node:path';
@@ -20,6 +21,7 @@ const model = String(process.env.OPENAI_MODEL || 'gpt-4.1-mini').trim();
 const apiKey = String(process.env.OPENAI_API_KEY || '').trim();
 const openAITimeoutMs = positiveInteger(process.env.OPENAI_TIMEOUT_MS, 30_000, 60_000);
 const maxOutputTokens = positiveInteger(process.env.OPENAI_MAX_OUTPUT_TOKENS, 700, 1_200);
+const quizMaxOutputTokens = positiveInteger(process.env.OPENAI_QUIZ_MAX_OUTPUT_TOKENS, 3_200, 5_000);
 const rateLimitWindowMs = positiveInteger(process.env.RATE_LIMIT_WINDOW_MS, 10 * 60 * 1000, 60 * 60 * 1000);
 const rateLimitMax = positiveInteger(process.env.RATE_LIMIT_MAX, 30, 500);
 const trustProxyHops = positiveInteger(process.env.TRUST_PROXY_HOPS, 1, 10);
@@ -35,6 +37,10 @@ const LIMITS = Object.freeze({
   contextArrayEntries: 24,
   contextStringCharacters: 2_000,
   contextSerializedCharacters: 18_000,
+  quizQuestions: 8,
+  quizFiles: 3,
+  quizFileBytes: 10 * 1024 * 1024,
+  quizExtractedTextCharacters: 16_000,
 });
 
 const DEFAULT_ALLOWED_ORIGINS = [
@@ -87,15 +93,111 @@ const chatRateLimiter = rateLimit({
   },
 });
 
+const acceptedQuizExtensions = new Set(['.pdf', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.webp', '.gif']);
+const quizUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    files: LIMITS.quizFiles,
+    fileSize: LIMITS.quizFileBytes,
+    fields: 4,
+    fieldSize: 64 * 1024,
+  },
+  fileFilter(req, file, callback) {
+    const extension = path.extname(file.originalname || '').toLowerCase();
+    const acceptedType =
+      file.mimetype === 'application/pdf' ||
+      file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      file.mimetype === 'text/plain' ||
+      file.mimetype?.startsWith('image/');
+    callback(null, acceptedType || acceptedQuizExtensions.has(extension));
+  },
+});
+
 const SYSTEM_INSTRUCTIONS = `
 You are Learnova Assistant, a calm and encouraging AI study coach for students across middle school, high school, college, university, and homeschool settings.
 Use the provided student profile, weak topics, saved materials, uploaded-file metadata, and browser context when relevant.
 Keep responses concise, useful, and student-facing. Never shame the student.
 Do not assume a country, age, grade system, curriculum, or level that was not supplied.
 If the student asks for quizzes, flashcards, revision plans, explanations, essay help, motivation, or study strategy, give practical next steps.
-This prototype does not parse uploaded file contents or connect to real school systems, Google Drive, Calendar, Notion, or private files. Never claim that metadata is file content.
+Treat uploaded-file metadata as metadata. Use extracted text only when it is explicitly present in the request.
+This prototype does not connect to real school systems, Google Drive, Calendar, Notion, or private accounts.
 Do not reveal private profile fields such as email unless the student explicitly asks about their account details.
 `;
+
+const QUIZ_SYSTEM_INSTRUCTIONS = `
+You are Learnova's assessment generator. Create a quiz about the student's actual academic content, never a generic study-skills quiz.
+Ground every question in the supplied files, extracted text, file title, detected subject, detected topics, or an explicit subject/topic entered by the student.
+Never ask about revision strategies, learning methods, time management, or study habits unless the source material itself is about those topics.
+Adapt terminology, command words, depth, and calculations to the supplied curriculum and level. Do not assume a curriculum that was not supplied.
+Test a useful mix of recall, understanding, and application. Avoid repeated questions and duplicate answer choices.
+Use calculation questions for quantitative material when appropriate. For literature, test the actual work, characters, themes, language, plot, symbolism, and analysis present in the source.
+Each question must include a correct answer and a concise teaching explanation. Do not fabricate quotations, source facts, or profile details.
+When four or more questions are requested, use at least three suitable question types unless the material genuinely supports fewer.
+`;
+
+const QUIZ_QUESTION_TYPES = [
+  'multiple_choice',
+  'true_false',
+  'fill_blank',
+  'short_answer',
+  'calculation',
+  'matching',
+  'definition',
+  'scenario',
+];
+
+const QUIZ_RESPONSE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'title',
+    'subject',
+    'topics',
+    'curriculum',
+    'sourceSummary',
+    'needsClarification',
+    'clarificationQuestion',
+    'questions',
+  ],
+  properties: {
+    title: { type: 'string' },
+    subject: { type: 'string' },
+    topics: { type: 'array', items: { type: 'string' } },
+    curriculum: { type: 'string' },
+    sourceSummary: { type: 'string' },
+    needsClarification: { type: 'boolean' },
+    clarificationQuestion: { type: 'string' },
+    questions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: [
+          'id',
+          'type',
+          'question',
+          'options',
+          'answer',
+          'acceptableAnswers',
+          'explanation',
+          'topic',
+          'difficulty',
+        ],
+        properties: {
+          id: { type: 'string' },
+          type: { type: 'string', enum: QUIZ_QUESTION_TYPES },
+          question: { type: 'string' },
+          options: { type: 'array', items: { type: 'string' } },
+          answer: { type: 'string' },
+          acceptableAnswers: { type: 'array', items: { type: 'string' } },
+          explanation: { type: 'string' },
+          topic: { type: 'string' },
+          difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
+        },
+      },
+    },
+  },
+};
 
 function positiveInteger(value, fallback, maximum) {
   const parsed = Number.parseInt(value, 10);
@@ -305,6 +407,155 @@ function classifyOpenAIError(error) {
   return requestError(502, 'Learnova could not complete that AI request. Please try again.', 'AI_REQUEST_FAILED');
 }
 
+function parseQuizRequest(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return {};
+  if (!body.request) return body;
+  try {
+    const parsed = JSON.parse(body.request);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    const error = new Error('Quiz request metadata must be valid JSON.');
+    error.code = 'INVALID_QUIZ_REQUEST';
+    throw error;
+  }
+}
+
+function normalizeQuizRequest(raw = {}) {
+  const material = raw.material && typeof raw.material === 'object' && !Array.isArray(raw.material)
+    ? raw.material
+    : {};
+  const requestedCount = Number.parseInt(raw.questionCount, 10);
+  const difficulty = ['easy', 'medium', 'hard'].includes(String(raw.difficulty || '').toLowerCase())
+    ? String(raw.difficulty).toLowerCase()
+    : 'medium';
+  return {
+    subject: safeText(raw.subject || material.detectedSubject, 120),
+    topic: safeText(raw.topic, 160),
+    difficulty,
+    questionCount: Math.max(2, Math.min(Number.isFinite(requestedCount) ? requestedCount : 5, LIMITS.quizQuestions)),
+    curriculum: safeText(raw.curriculum, 120),
+    weakTopics: safeList(raw.weakTopics, 12),
+    studentProfile: normalizeStudentProfile(raw.studentProfile || {}),
+    material: {
+      id: safeText(material.id, 120),
+      title: safeText(material.title || material.name, 240),
+      type: safeText(material.type, 120),
+      detectedSubject: safeText(material.detectedSubject, 120),
+      detectedTopics: safeList(material.detectedTopics, 12),
+      extractedText: safeText(material.extractedText, LIMITS.quizExtractedTextCharacters),
+    },
+  };
+}
+
+function quizFileMime(file) {
+  const extension = path.extname(file.originalname || '').toLowerCase();
+  const byExtension = {
+    '.pdf': 'application/pdf',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.txt': 'text/plain',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+  };
+  return file.mimetype && file.mimetype !== 'application/octet-stream'
+    ? file.mimetype
+    : byExtension[extension] || 'application/octet-stream';
+}
+
+function quizInputContent(request, files) {
+  const fileContent = files.map((file) => {
+    const mime = quizFileMime(file);
+    const dataUrl = `data:${mime};base64,${file.buffer.toString('base64')}`;
+    if (mime.startsWith('image/')) {
+      return { type: 'input_image', image_url: dataUrl, detail: 'auto' };
+    }
+    return {
+      type: 'input_file',
+      filename: safeText(file.originalname, 240) || 'study-material',
+      file_data: dataUrl,
+    };
+  });
+
+  const topicSignals = [request.topic, ...request.material.detectedTopics].filter(Boolean);
+  const prompt = [
+    `Create exactly ${request.questionCount} questions at ${request.difficulty} difficulty.`,
+    `Requested subject: ${request.subject || 'Infer this from the supplied study material.'}`,
+    `Requested/detected topics: ${topicSignals.join(', ') || 'Infer these from the supplied study material.'}`,
+    `Curriculum or level: ${request.curriculum || request.studentProfile.curriculum || request.studentProfile.yearGroup || request.studentProfile.grade || 'Not supplied; use the material itself to judge level.'}`,
+    `File title: ${request.material.title || files.map((file) => file.originalname).join(', ') || 'No file supplied.'}`,
+    `File type: ${request.material.type || files.map(quizFileMime).join(', ') || 'Not supplied.'}`,
+    `Detected subject: ${request.material.detectedSubject || 'Not supplied.'}`,
+    `Detected topics: ${request.material.detectedTopics.join(', ') || 'Not supplied.'}`,
+    `Student weak topics: ${request.weakTopics.join(', ') || request.studentProfile.weakTopics.join(', ') || 'Not supplied.'}`,
+    '',
+    'Extracted text supplied by the extension:',
+    request.material.extractedText || 'No local text preview. Inspect the attached file or image directly.',
+    '',
+    'Return only the requested structured quiz. Ground the questions in academic subject matter. Generic questions about how to study or revise are forbidden unless this source is explicitly about study techniques.',
+  ].join('\n');
+
+  return [...fileContent, { type: 'input_text', text: prompt }];
+}
+
+function genericStudyQuestion(text) {
+  return /(best study|best revision|study method|revision strategy|how should you revise|learning strategy|improves? .*mastery|after a low .*score)/i.test(text);
+}
+
+function sourceIsAboutStudySkills(request) {
+  const source = [
+    request.subject,
+    request.topic,
+    request.material.title,
+    request.material.extractedText,
+    ...request.material.detectedTopics,
+  ].join(' ');
+  return /(study skills|revision methods?|learning strateg|time management|active recall|spaced repetition)/i.test(source);
+}
+
+function sanitizeQuizResponse(raw, request) {
+  const parsed = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const allowStudySkills = sourceIsAboutStudySkills(request);
+  const questions = safeArray(parsed.questions)
+    .slice(0, request.questionCount)
+    .map((question, index) => {
+      const type = QUIZ_QUESTION_TYPES.includes(question?.type) ? question.type : 'short_answer';
+      const prompt = safeText(question?.question, 1_000);
+      const answer = safeText(question?.answer, 1_000);
+      if (!prompt || !answer || (!allowStudySkills && genericStudyQuestion(prompt))) return null;
+      let options = safeList(question.options, 8);
+      if (type === 'true_false') options = ['True', 'False'];
+      return {
+        id: safeText(question.id, 80) || `question-${index + 1}`,
+        type,
+        question: prompt,
+        options,
+        answer,
+        acceptableAnswers: [...new Set([answer, ...safeList(question.acceptableAnswers, 12)])],
+        explanation: safeText(question.explanation, 1_500) || `The correct answer is ${answer}.`,
+        topic: safeText(question.topic, 160) || request.topic || request.material.detectedTopics[0] || 'Core content',
+        difficulty: ['easy', 'medium', 'hard'].includes(question.difficulty)
+          ? question.difficulty
+          : request.difficulty,
+      };
+    })
+    .filter(Boolean);
+
+  return {
+    title: safeText(parsed.title, 240) || `${request.topic || request.subject || 'Study material'} quiz`,
+    subject: safeText(parsed.subject, 120) || request.subject || request.material.detectedSubject,
+    topics: safeList(parsed.topics, 12).length
+      ? safeList(parsed.topics, 12)
+      : [request.topic, ...request.material.detectedTopics].filter(Boolean),
+    curriculum: safeText(parsed.curriculum, 120) || request.curriculum || request.studentProfile.curriculum,
+    sourceSummary: safeText(parsed.sourceSummary, 500),
+    needsClarification: Boolean(parsed.needsClarification),
+    clarificationQuestion: safeText(parsed.clarificationQuestion, 300),
+    questions,
+  };
+}
+
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
@@ -395,6 +646,81 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
   }
 });
 
+app.post('/api/quiz', chatRateLimiter, quizUpload.array('files', LIMITS.quizFiles), async (req, res) => {
+  let request;
+  try {
+    request = normalizeQuizRequest(parseQuizRequest(req.body));
+  } catch (error) {
+    return res.status(400).json({
+      error: error.message || 'Quiz request metadata is invalid.',
+      code: error.code || 'INVALID_QUIZ_REQUEST',
+    });
+  }
+
+  const files = safeArray(req.files);
+  const hasStudyMaterial = files.length > 0 || Boolean(request.material.extractedText);
+  const hasRequestedContent = Boolean(request.subject || request.topic || request.material.detectedSubject || request.material.detectedTopics.length);
+  if (!hasStudyMaterial && !hasRequestedContent) {
+    return res.json({
+      title: '',
+      subject: '',
+      topics: [],
+      curriculum: request.curriculum || request.studentProfile.curriculum,
+      sourceSummary: '',
+      needsClarification: true,
+      clarificationQuestion: 'What subject or topic would you like to be quizzed on?',
+      questions: [],
+    });
+  }
+
+  const client = createOpenAIClient();
+  if (!client) {
+    return res.status(503).json({
+      error: 'Learnova AI is not configured.',
+      code: 'AI_NOT_CONFIGURED',
+    });
+  }
+
+  try {
+    const response = await client.responses.create({
+      model,
+      instructions: [
+        QUIZ_SYSTEM_INSTRUCTIONS.trim(),
+        '',
+        'Hidden student profile context (use only when relevant):',
+        JSON.stringify(request.studentProfile, null, 2),
+      ].join('\n'),
+      input: [{ role: 'user', content: quizInputContent(request, files) }],
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'learnova_content_quiz',
+          strict: true,
+          schema: QUIZ_RESPONSE_SCHEMA,
+        },
+      },
+      max_output_tokens: quizMaxOutputTokens,
+    });
+    const output = textFromResponse(response);
+    const quiz = sanitizeQuizResponse(JSON.parse(output), request);
+    if (!quiz.needsClarification && quiz.questions.length < 2) {
+      return res.status(502).json({
+        error: 'Learnova could not create enough content-based questions. Please try again or choose a more specific topic.',
+        code: 'QUIZ_QUALITY_CHECK_FAILED',
+      });
+    }
+    return res.json({ ...quiz, model, responseId: response.id });
+  } catch (error) {
+    const classified = classifyOpenAIError(error);
+    console.error('OpenAI quiz request failed', {
+      requestId: res.getHeader('X-Request-ID'),
+      status: Number(error?.status || 0) || undefined,
+      type: String(error?.name || 'OpenAIError'),
+    });
+    return res.status(classified.status).json(classified.body);
+  }
+});
+
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found.', code: 'NOT_FOUND' });
 });
@@ -406,6 +732,15 @@ app.use((error, req, res, next) => {
   }
   if (error?.type === 'entity.too.large') {
     return res.status(413).json({ error: 'Request body is too large.', code: 'BODY_TOO_LARGE' });
+  }
+  if (error instanceof multer.MulterError) {
+    const tooLarge = error.code === 'LIMIT_FILE_SIZE' || error.code === 'LIMIT_FILE_COUNT';
+    return res.status(413).json({
+      error: tooLarge
+        ? 'Study files must be 10 MB or smaller, with no more than three files per quiz.'
+        : 'The study material upload could not be processed.',
+      code: tooLarge ? 'STUDY_FILES_TOO_LARGE' : 'INVALID_STUDY_FILES',
+    });
   }
   if (error instanceof SyntaxError) {
     return res.status(400).json({ error: 'Request body must be valid JSON.', code: 'INVALID_JSON' });

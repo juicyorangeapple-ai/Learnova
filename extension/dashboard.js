@@ -88,7 +88,7 @@ const defaultAuth = {
 };
 
 const defaultState = {
-  plan: 'Plus',
+  plan: 'Learnova Pro',
   onboarded: false,
   aiProvider: 'openai',
   theme: defaultThemePreference,
@@ -199,22 +199,68 @@ const flashcards = [
 const pricing = [
   {
     name: 'Starter',
-    price: '$10',
-    description: 'For focused weekly practice.',
-    features: ['Basic AI Study Assistant', '20 quiz generations/month', '50 flashcards/month', 'Save study materials', 'Basic revision planner'],
+    price: '$14.99',
+    cadence: '/month',
+    description: 'Perfect for students who want AI-powered studying every day.',
+    cta: 'Choose Starter',
+    features: [
+      'AI Tutor',
+      'Personalized study profile',
+      'Smart summaries',
+      'Flashcard generation',
+      'Practice quizzes',
+      'Study-set uploads (25)',
+      'AI explanations',
+      'Learnova Companion',
+      'Progress tracking',
+      'Chrome Extension access',
+      'Email support',
+    ],
   },
   {
-    name: 'Plus',
-    price: '$50',
-    description: 'For ambitious students building momentum.',
+    name: 'Learnova Pro',
+    price: '$21.99',
+    cadence: '/month',
+    description: 'Built for students preparing for exams and studying consistently.',
+    cta: 'Choose Learnova Pro',
     featured: true,
-    features: ['Unlimited quizzes', 'Unlimited flashcards', 'Advanced AI explanations', 'Weak-topic tracker', 'Personalized revision plans', 'Chrome extension access', 'Progress analytics'],
+    featureLead: 'Everything in Starter, plus:',
+    features: [
+      'Higher AI usage limits',
+      'Unlimited study-set uploads',
+      'Unlimited flashcards',
+      'Unlimited quizzes',
+      'AI-generated practice exams',
+      'Weak-topic detection',
+      'Personalized daily study plans',
+      'Curriculum-aware tutoring (IB, AP, A Levels, IGCSE, GCSE, O Levels and more)',
+      'Advanced analytics',
+      'Priority AI responses',
+      'Early access to new features',
+      'Priority support',
+    ],
   },
   {
-    name: 'Premium',
-    price: '$75',
-    description: 'For high-stakes exams and deeper support.',
-    features: ['Everything in Plus', 'Priority AI tutor mode', 'Exam strategy planner', 'Parent progress dashboard', 'Advanced subject reports', 'Essay feedback mode', 'SAT/IB/IGCSE prep mode', 'Early access to new features'],
+    name: 'Schools & Institutions',
+    price: 'Custom Pricing',
+    description: 'Designed for schools, academies and educational organizations.',
+    cta: 'Book a Demo',
+    institutional: true,
+    features: [
+      'Unlimited student accounts',
+      'Teacher dashboards',
+      'Administrator dashboard',
+      'School-wide analytics',
+      'Assignment management',
+      'Attendance integration',
+      'Gradebook integration',
+      'AI-powered teacher insights',
+      'Student progress reports',
+      'Role-based permissions',
+      'Dedicated onboarding',
+      'Priority support',
+      'Future SIS/LMS integrations',
+    ],
   },
 ];
 
@@ -246,6 +292,7 @@ let onboardingErrors = {};
 let onboardingReturnFocus = null;
 let assistantDraft = '';
 let pendingQuiz = null;
+let activeQuiz = null;
 let revealObserver = null;
 let activeStudySetId = '';
 
@@ -320,6 +367,7 @@ function normalizeState(raw = {}) {
   return {
     ...defaultState,
     ...raw,
+    plan: raw.plan === 'Plus' || raw.plan === 'Premium' ? 'Learnova Pro' : raw.plan || defaultState.plan,
     focus: normalizeFocus(raw.focus),
     theme: normalizeThemePreference(raw.theme),
     auth: normalizeAuth(raw.auth),
@@ -875,12 +923,15 @@ function getStudySets() {
   const uploads = state.assistantUploads.map((item) => ({
     id: `upload-${item.id}`,
     title: item.name,
-    subject: 'Uploaded material',
+    subject: item.detectedSubject || item.subject || 'Uploaded material',
     type: studySetTypeLabel(item.type),
-    topics: ['Ready for AI study context'],
+    topics: item.detectedTopics?.length
+      ? item.detectedTopics
+      : [item.topic || 'Choose a topic when generating a quiz'],
     estimate: studySetEstimate(item.type),
     lastStudied: 'Just added',
     source: 'Uploaded file',
+    uploadId: item.id,
   }));
   const savedPages = state.savedPages.map((item, index) => ({
     id: `page-${item.id || index}`,
@@ -1071,7 +1122,12 @@ function launchStudySetAction(id, action) {
     showToast(`Opening flashcards for ${set.title}.`);
     return;
   }
-  pendingQuiz = { subject: set.subject, topic };
+  pendingQuiz = {
+    subject: set.subject === 'Uploaded material' ? '' : set.subject,
+    topic: topic === 'Choose a topic when generating a quiz' ? '' : topic,
+    studySetId: set.id,
+    uploadId: set.uploadId || '',
+  };
   setRoute('quiz');
   showToast(`${action === 'practice' ? 'Practice questions' : 'Quiz'} prepared for ${set.title}.`);
 }
@@ -1719,6 +1775,11 @@ function UploadedFileList() {
               <div>
                 <strong>${escapeHtml(file.name)}</strong>
                 <small>${escapeHtml(file.type || 'Unknown file')} - ${escapeHtml(file.status)}</small>
+                ${
+                  file.detectedSubject
+                    ? `<small>${escapeHtml(file.detectedSubject)}${file.detectedTopics?.length ? ` - ${escapeHtml(file.detectedTopics.join(', '))}` : ''}</small>`
+                    : '<small>Subject will be confirmed when you generate a quiz.</small>'
+                }
               </div>
               <button class="remove-upload" data-id="${file.id}">Remove</button>
             </div>
@@ -1736,7 +1797,7 @@ function UploadContextModal() {
         <div>
           <p class="eyebrow">Study context</p>
           <h2>Add study context</h2>
-          <p class="muted">Attach local files now, or connect learning sources later. Nothing is uploaded to a server in this prototype.</p>
+          <p class="muted">Files stay on this device until you choose an AI action. The selected material is then sent securely to Learnova AI for that request.</p>
         </div>
         <button id="closeModal" class="secondary">Close</button>
       </div>
@@ -1783,6 +1844,7 @@ function bindUploadContextModal() {
 function bindUploadedFileList() {
   document.querySelectorAll('.remove-upload').forEach((button) => {
     button.addEventListener('click', async () => {
+      await globalThis.LearnovaStudyMaterials?.removeFile(button.dataset.id);
       const uploads = state.assistantUploads.filter((file) => file.id !== button.dataset.id);
       await storage.set({ ...state, assistantUploads: uploads });
       document.getElementById('uploadedFileList').innerHTML = UploadedFileList();
@@ -1799,26 +1861,50 @@ async function handleStudyFiles(event) {
   const maxFileSize = 10 * 1024 * 1024;
   const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
   const oversized = files.filter((file) => file.size > maxFileSize);
-  const uploads = files
-    .filter((file) => file.size <= maxFileSize && (allowed.includes(file.type) || file.type.startsWith('image/')))
-    .map((file) => ({
-      id: uid(),
-      name: file.name,
-      type: file.type || file.name.split('.').pop().toUpperCase(),
-      size: file.size,
-      status: 'Ready for prototype context',
-      addedAt: new Date().toISOString(),
-    }));
+  const acceptedFiles = files.filter(
+    (file) => file.size <= maxFileSize && (
+      allowed.includes(file.type) ||
+      file.type.startsWith('image/') ||
+      /\.(pdf|docx|txt|png|jpe?g|webp|gif)$/i.test(file.name)
+    )
+  );
+  const uploads = [];
+
+  for (const file of acceptedFiles) {
+    const id = uid();
+    try {
+      const extractedText = await globalThis.LearnovaStudyMaterials.readTextPreview(file);
+      const detected = globalThis.LearnovaStudyMaterials.detectStudyContext(file.name, extractedText);
+      await globalThis.LearnovaStudyMaterials.saveFile(id, file);
+      uploads.push({
+        id,
+        name: file.name,
+        type: file.type || file.name.split('.').pop().toUpperCase(),
+        size: file.size,
+        status: 'Ready for an AI quiz',
+        addedAt: new Date().toISOString(),
+        extractedText,
+        detectedSubject: detected.detectedSubject,
+        detectedTopics: detected.detectedTopics,
+        sourceAvailable: true,
+      });
+    } catch {
+      showToast(`${file.name} could not be saved. Please try attaching it again.`);
+    }
+  }
 
   if (!uploads.length) {
+    event.target.value = '';
     showToast(oversized.length ? 'Files must be 10 MB or smaller.' : 'Supported files: PDF, DOCX, TXT, and images.');
     return;
   }
   await storage.set({ ...state, assistantUploads: [...uploads, ...state.assistantUploads] });
-  document.getElementById('uploadedFileList').innerHTML = UploadedFileList();
+  const uploadedFileList = document.getElementById('uploadedFileList');
+  if (uploadedFileList) uploadedFileList.innerHTML = UploadedFileList();
   bindUploadedFileList();
   refreshStudyContextIndicators();
   showUploadCompletion();
+  event.target.value = '';
   showToast(`${uploads.length} file${uploads.length === 1 ? '' : 's'} attached to Learnova.`);
 }
 
@@ -1903,148 +1989,388 @@ function assistantResponseMarkup(response) {
 }
 
 function renderQuiz() {
+  const uploadedMaterials = state.assistantUploads;
+  const subjectSuggestions = [...new Set([
+    ...toList(state.studentProfile.subjects),
+    ...Object.keys(subjects),
+    ...uploadedMaterials.map((item) => item.detectedSubject).filter(Boolean),
+    'Biology',
+    'History',
+    'English Literature',
+  ])];
   stage.innerHTML = `
-    <section class="grid grid-2">
+    <section class="grid grid-2 quiz-setup-grid">
       ${panel(`
         <p class="eyebrow">Quiz Studio</p>
-        <h2>Generate focused practice.</h2>
+        <h2>Quiz the content you are studying.</h2>
+        <p class="muted">Choose an uploaded study set, or enter a subject and topic. Learnova will create questions about that academic content.</p>
         <div class="form-grid">
-          <label>Subject<select id="quizSubject">${Object.keys(subjects).map((subject) => `<option>${subject}</option>`).join('')}</select></label>
-          <label>Topic<select id="quizTopic"></select></label>
+          <label class="quiz-material-field">Study material
+            <select id="quizMaterial">
+              <option value="">No file selected</option>
+              ${uploadedMaterials.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('')}
+            </select>
+          </label>
+          <label>Subject
+            <input id="quizSubject" list="quizSubjectSuggestions" placeholder="e.g. Chemistry, History, Mathematics">
+            <datalist id="quizSubjectSuggestions">${subjectSuggestions.map((subject) => `<option value="${escapeHtml(subject)}"></option>`).join('')}</datalist>
+          </label>
+          <label>Topic<input id="quizTopic" placeholder="e.g. Moles, Photosynthesis, the Cold War"></label>
           <label>Difficulty<select id="quizDifficulty"><option>Easy</option><option selected>Medium</option><option>Hard</option></select></label>
-          <label>Questions<input id="quizCount" type="number" min="2" max="4" value="4"></label>
+          <label>Questions<input id="quizCount" type="number" min="2" max="8" value="5"></label>
         </div>
+        <div id="quizSourceHint" class="quiz-source-hint" aria-live="polite"></div>
         <div class="button-row" style="margin-top:16px">
-          <button id="generateQuiz" class="primary">Generate mock quiz</button>
+          <button id="generateQuiz" class="primary">Generate content quiz</button>
           <button class="secondary route-link" data-route="pricing">Unlock unlimited</button>
         </div>
       `)}
       ${panel(`
-        <p class="eyebrow">Session brief</p>
-        <h2>Designed for short effort.</h2>
-        <p class="muted">Learnova recommends short, high-signal quizzes before passive review. This demo updates mastery locally after completion.</p>
+        <p class="eyebrow">Content grounding</p>
+        <h2>Built from your material.</h2>
+        <p class="muted">Questions use the selected file, detected topics, your curriculum, and the level in your profile. Answers include explanations after submission.</p>
+        <div class="quiz-context-list">
+          <span>Actual subject content</span>
+          <span>Mixed question styles</span>
+          <span>Curriculum-aware difficulty</span>
+          <span>Progress signals after scoring</span>
+        </div>
       `, 'locked')}
     </section>
-    ${panel('<div class="section-title"><div><p class="eyebrow">Practice</p><h2>Quiz preview</h2></div></div><div id="quizArea" class="grid"><p class="muted">Generate a mock quiz to begin.</p></div>')}
+    ${panel(`<div class="section-title"><div><p class="eyebrow">Practice</p><h2>Quiz workspace</h2></div></div><div id="quizArea" class="quiz-workspace" aria-live="polite"><div class="quiz-empty-state"><strong>${uploadedMaterials.length ? 'Select a study set and generate your quiz.' : 'What subject would you like to be quizzed on?'}</strong><p>${uploadedMaterials.length ? 'Learnova will inspect the selected material and build content-specific questions.' : 'Enter a subject or topic above. Learnova will not substitute generic study-skills questions.'}</p></div></div>`)}
   `;
 
-  const subject = document.getElementById('quizSubject');
-  const topic = document.getElementById('quizTopic');
-  const syncTopics = () => {
-    topic.innerHTML = subjects[subject.value].map((item) => `<option>${item}</option>`).join('');
+  const materialSelect = document.getElementById('quizMaterial');
+  const subjectInput = document.getElementById('quizSubject');
+  const topicInput = document.getElementById('quizTopic');
+  const sourceHint = document.getElementById('quizSourceHint');
+  const syncMaterialContext = (force = false) => {
+    const material = uploadedMaterials.find((item) => item.id === materialSelect.value);
+    if (!material) {
+      sourceHint.textContent = 'No file selected. Enter a subject or topic to continue.';
+      return;
+    }
+    if (force || !subjectInput.value.trim()) subjectInput.value = material.detectedSubject || '';
+    if (force || !topicInput.value.trim()) topicInput.value = material.detectedTopics?.[0] || '';
+    const context = [material.detectedSubject, ...(material.detectedTopics || [])].filter(Boolean).join(' - ');
+    sourceHint.textContent = context
+      ? `Using ${material.name}: ${context}`
+      : `Using ${material.name}. Learnova will inspect the file to identify its subject and topics.`;
   };
-  subject.addEventListener('change', syncTopics);
-  if (pendingQuiz && subjects[pendingQuiz.subject]) {
-    subject.value = pendingQuiz.subject;
-    syncTopics();
-    const matchingTopic = subjects[pendingQuiz.subject].find((item) => item.toLowerCase() === String(pendingQuiz.topic || '').toLowerCase());
-    if (matchingTopic) topic.value = matchingTopic;
+  materialSelect.addEventListener('change', () => syncMaterialContext(true));
+
+  if (pendingQuiz) {
+    subjectInput.value = pendingQuiz.subject || '';
+    topicInput.value = pendingQuiz.topic || '';
+    materialSelect.value = pendingQuiz.uploadId || '';
+    syncMaterialContext(false);
     pendingQuiz = null;
+  } else if (uploadedMaterials[0]) {
+    materialSelect.value = uploadedMaterials[0].id;
+    syncMaterialContext(true);
   } else {
-    syncTopics();
+    syncMaterialContext(false);
   }
   document.getElementById('generateQuiz').addEventListener('click', generateQuiz);
 }
 
-function quizQuestions(subject, topic) {
-  return [
-    {
-      q: `What is the strongest revision move for ${topic}?`,
-      options: ['Active recall', 'Only rereading', 'Avoid feedback', 'Skip examples'],
-      answer: 'Active recall',
-    },
-    subject === 'Chemistry'
-      ? {
-          q: 'What does one mole represent?',
-          options: ['6.02 x 10^23 particles', '1 particle', '12 grams only', 'No fixed meaning'],
-          answer: '6.02 x 10^23 particles',
-        }
-      : {
-          q: `Which habit improves ${topic} mastery fastest?`,
-          options: ['Practice with feedback', 'Guessing silently', 'Skipping weak areas', 'Only highlighting'],
-          answer: 'Practice with feedback',
-        },
-    {
-      q: `Short answer: name one common mistake in ${topic}.`,
-      short: true,
-      answer: 'Missing steps, units, or key definitions',
-    },
-    {
-      q: `What should happen after a low ${topic} score?`,
-      options: ['Target the weak step', 'Stop revising', 'Only read notes', 'Ignore mistakes'],
-      answer: 'Target the weak step',
-    },
-  ];
+function quizQuestionTypeLabel(type) {
+  return {
+    multiple_choice: 'Multiple choice',
+    true_false: 'True / False',
+    fill_blank: 'Fill in the blank',
+    short_answer: 'Short answer',
+    calculation: 'Calculation',
+    matching: 'Matching',
+    definition: 'Definition',
+    scenario: 'Scenario',
+  }[type] || 'Question';
 }
 
-function generateQuiz() {
-  selectedAnswers = {};
-  const subject = document.getElementById('quizSubject').value;
-  const topic = document.getElementById('quizTopic').value;
-  const count = Math.min(Number(document.getElementById('quizCount').value), 4);
-  const questions = quizQuestions(subject, topic).slice(0, count);
-  document.getElementById('quizArea').innerHTML = `
-    ${questions
-      .map(
-        (question, index) => `
-          <div class="list-row" style="display:block">
-            <strong>${index + 1}. ${escapeHtml(question.q)}</strong>
-            ${
-              question.short
-                ? `<input class="short-answer" data-index="${index}" placeholder="Type a short answer" style="margin-top:12px">`
-                : `<div class="grid grid-2" style="margin-top:12px">${question.options
-                    .map((option) => `<button class="quiz-option" data-index="${index}" data-answer="${escapeHtml(option)}">${escapeHtml(option)}</button>`)
-                    .join('')}</div>`
-            }
-          </div>
-        `
-      )
-      .join('')}
-    <button id="submitQuiz" class="primary">Complete quiz</button>
-    <div id="quizResult"></div>
+function quizLoadingMarkup() {
+  return `
+    <div class="quiz-generating" role="status">
+      <span class="quiz-spinner" aria-hidden="true"></span>
+      <div><strong>Building questions from your study content...</strong><p>Learnova is checking the material, curriculum, and topic.</p></div>
+    </div>
+    ${Array.from({ length: 3 }, () => '<div class="quiz-skeleton"><span></span><span></span><span></span></div>').join('')}
   `;
+}
 
+function quizQuestionMarkup(question, index) {
+  const usesOptions = ['multiple_choice', 'true_false'].includes(question.type) && question.options.length;
+  return `
+    <article class="quiz-question" data-question-id="${escapeHtml(question.id)}">
+      <div class="quiz-question-meta">
+        <span>Question ${index + 1}</span>
+        <span>${escapeHtml(quizQuestionTypeLabel(question.type))}</span>
+        <span>${escapeHtml(question.topic)}</span>
+      </div>
+      <h3>${escapeHtml(question.question)}</h3>
+      ${
+        usesOptions
+          ? `<div class="quiz-options">${question.options.map((option) => `<button type="button" class="quiz-option" data-question-id="${escapeHtml(question.id)}" data-answer="${escapeHtml(option)}">${escapeHtml(option)}</button>`).join('')}</div>`
+          : `<label class="quiz-written-answer"><span>Your answer</span><textarea data-quiz-answer="${escapeHtml(question.id)}" rows="${question.type === 'scenario' || question.type === 'short_answer' ? 3 : 2}" placeholder="${question.type === 'calculation' ? 'Show your answer and include units where relevant' : 'Type your answer'}"></textarea></label>`
+      }
+    </article>
+  `;
+}
+
+function bindGeneratedQuiz(quiz) {
   document.querySelectorAll('.quiz-option').forEach((button) => {
     button.addEventListener('click', () => {
-      selectedAnswers[button.dataset.index] = button.dataset.answer;
-      document.querySelectorAll(`.quiz-option[data-index="${button.dataset.index}"]`).forEach((option) => {
-        option.classList.remove('selected');
+      selectedAnswers[button.dataset.questionId] = button.dataset.answer;
+      document.querySelectorAll(`.quiz-option[data-question-id="${CSS.escape(button.dataset.questionId)}"]`).forEach((option) => {
+        option.classList.toggle('selected', option === button);
       });
-      button.classList.add('selected');
     });
   });
-
-  document.querySelectorAll('.short-answer').forEach((input) => {
+  document.querySelectorAll('[data-quiz-answer]').forEach((input) => {
     input.addEventListener('input', () => {
-      selectedAnswers[input.dataset.index] = input.value;
+      selectedAnswers[input.dataset.quizAnswer] = input.value;
     });
   });
-
-  document.getElementById('submitQuiz').addEventListener('click', () => submitQuiz(subject, topic, questions));
+  document.getElementById('submitQuiz')?.addEventListener('click', () => submitQuiz(quiz));
 }
 
-async function submitQuiz(subject, topic, questions) {
-  let correct = 0;
-  questions.forEach((question, index) => {
-    const answer = selectedAnswers[index] || '';
-    if (question.short ? answer.trim().length > 5 : answer === question.answer) correct += 1;
-  });
-  const score = Math.round((correct / questions.length) * 100);
-  const mastery = state.mastery.map((item) =>
-    item.subject === subject && item.topic.toLowerCase() === topic.toLowerCase()
-      ? { ...item, score: Math.min(100, item.score + 6) }
-      : item
-  );
-  await storage.set({ ...state, mastery });
-
-  document.getElementById('quizResult').innerHTML = `
-    <div class="prompt-card">
-      <p class="eyebrow">Completed</p>
-      <h2>Score: ${score}%</h2>
-      <p class="muted">Mock mastery updated locally. Correct answers are shown below for review.</p>
-      ${questions.map((question) => `<div class="list-row"><div><strong>Answer</strong><small>${escapeHtml(question.answer)}</small></div></div>`).join('')}
+function renderGeneratedQuiz(quiz) {
+  activeQuiz = quiz;
+  const quizArea = document.getElementById('quizArea');
+  quizArea.innerHTML = `
+    <div class="quiz-title-row">
+      <div><span class="pill">${escapeHtml(quiz.curriculum || 'Personalized level')}</span><h2>${escapeHtml(quiz.title)}</h2><p>${escapeHtml(quiz.sourceSummary || `Questions about ${quiz.topics.join(', ') || quiz.subject}.`)}</p></div>
+      <span class="quiz-count">${quiz.questions.length} questions</span>
     </div>
+    <div class="quiz-question-list">${quiz.questions.map(quizQuestionMarkup).join('')}</div>
+    <button id="submitQuiz" class="primary quiz-submit">Complete quiz</button>
   `;
+  bindGeneratedQuiz(quiz);
+}
+
+async function generateQuiz() {
+  selectedAnswers = {};
+  activeQuiz = null;
+  const button = document.getElementById('generateQuiz');
+  const quizArea = document.getElementById('quizArea');
+  const subject = document.getElementById('quizSubject').value.trim();
+  const topic = document.getElementById('quizTopic').value.trim();
+  const materialId = document.getElementById('quizMaterial').value;
+  const material = state.assistantUploads.find((item) => item.id === materialId) || null;
+
+  if (!material && !subject && !topic) {
+    quizArea.innerHTML = '<div class="quiz-empty-state quiz-clarification"><strong>What subject would you like to be quizzed on?</strong><p>Enter a subject or topic above, or upload study material first.</p></div>';
+    document.getElementById('quizSubject').focus();
+    return;
+  }
+
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.textContent = 'Generating...';
+  quizArea.innerHTML = quizLoadingMarkup();
+
+  try {
+    const storedProfile = await getProfile();
+    const profile = storedProfile.profileLoaded && storedProfile.profile.personalizationEnabled !== false
+      ? ProfileService.buildStudentContext(storedProfile.profile)
+      : {};
+    const formData = new FormData();
+    const attachedIds = material
+      ? await globalThis.LearnovaStudyMaterials.appendFiles(formData, [material.id])
+      : [];
+    if (material?.sourceAvailable && !attachedIds.length && !material.extractedText) {
+      throw new Error('This file is no longer available locally. Remove it and attach it again before generating a quiz.');
+    }
+    formData.append('request', JSON.stringify({
+      subject,
+      topic,
+      difficulty: document.getElementById('quizDifficulty').value,
+      questionCount: Number(document.getElementById('quizCount').value),
+      curriculum: profile.curriculum || '',
+      weakTopics: profile.weakTopics || [],
+      studentProfile: profile,
+      material: material ? {
+        id: material.id,
+        title: material.name,
+        type: material.type,
+        detectedSubject: material.detectedSubject || '',
+        detectedTopics: material.detectedTopics || [],
+        extractedText: material.extractedText || '',
+      } : {},
+    }));
+
+    const response = await LearnovaConfig.fetchApi('/api/quiz', {
+      method: 'POST',
+      body: formData,
+      timeoutMs: 65_000,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || (response.status === 503
+        ? 'Learnova AI may be waking up. Please try again shortly.'
+        : 'Learnova could not generate this quiz. Please try again.'));
+    }
+    if (payload.needsClarification || !payload.questions?.length) {
+      quizArea.innerHTML = `<div class="quiz-empty-state quiz-clarification"><strong>${escapeHtml(payload.clarificationQuestion || 'What topic are you studying?')}</strong><p>Add the subject or topic above, then generate again.</p></div>`;
+      document.getElementById('quizSubject').focus();
+      return;
+    }
+    renderGeneratedQuiz(payload);
+  } catch (error) {
+    const offlineMessage = /fetch|network|abort/i.test(String(error?.message || ''))
+      ? 'Learnova AI may be waking up. Please wait a moment and try again.'
+      : error.message;
+    quizArea.innerHTML = `<div class="quiz-empty-state quiz-error"><strong>Quiz generation paused</strong><p>${escapeHtml(offlineMessage || 'Learnova could not generate this quiz. Please try again.')}</p><button id="retryQuiz" class="secondary">Try again</button></div>`;
+    document.getElementById('retryQuiz')?.addEventListener('click', generateQuiz);
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    button.textContent = 'Generate content quiz';
+  }
+}
+
+function normalizedQuizAnswer(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[×·]/g, 'x')
+    .replace(/[^a-z0-9.+\-x^/\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function numericQuizAnswers(value) {
+  const scientific = normalizedQuizAnswer(value).replace(
+    /(-?\d+(?:\.\d+)?)\s*x\s*10\s*\^\s*(-?\d+)/gi,
+    '$1e$2'
+  );
+  return (scientific.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi) || [])
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((left, right) => left - right);
+}
+
+function quizAnswerMatches(question, response) {
+  const actual = normalizedQuizAnswer(response);
+  if (!actual) return false;
+  const accepted = [...new Set([question.answer, ...(question.acceptableAnswers || [])])]
+    .map(normalizedQuizAnswer)
+    .filter(Boolean);
+  if (accepted.includes(actual)) return true;
+
+  if (question.type === 'calculation') {
+    const actualNumbers = numericQuizAnswers(actual);
+    return accepted.some((answer) => {
+      const expectedNumbers = numericQuizAnswers(answer);
+      if (!actualNumbers.length || actualNumbers.length !== expectedNumbers.length) return false;
+      return expectedNumbers.every((expectedNumber, index) =>
+        Math.abs(actualNumbers[index] - expectedNumber) <= Math.max(0.01, Math.abs(expectedNumber) * 0.01)
+      );
+    });
+  }
+
+  return accepted.some((answer) => {
+    if (answer.length >= 4 && (actual.includes(answer) || answer.includes(actual))) return true;
+    const expectedTokens = [...new Set(answer.split(' ').filter((token) => token.length > 2))];
+    if (!expectedTokens.length) return false;
+    const actualTokens = new Set(actual.split(' '));
+    const overlap = expectedTokens.filter((token) => actualTokens.has(token)).length / expectedTokens.length;
+    return overlap >= (question.type === 'short_answer' || question.type === 'scenario' ? 0.6 : 0.75);
+  });
+}
+
+function topicPerformance(quiz, results) {
+  const performance = new Map();
+  quiz.questions.forEach((question, index) => {
+    const topic = question.topic || quiz.topics[0] || quiz.subject || 'Core content';
+    const current = performance.get(topic) || { correct: 0, total: 0 };
+    current.total += 1;
+    if (results[index].correct) current.correct += 1;
+    performance.set(topic, current);
+  });
+  return performance;
+}
+
+function updatedMasteryFromQuiz(quiz, performance) {
+  const next = state.mastery.map((item) => ({ ...item }));
+  performance.forEach((result, topic) => {
+    const topicScore = Math.round((result.correct / result.total) * 100);
+    const existing = next.find(
+      (item) => item.subject.toLowerCase() === String(quiz.subject || '').toLowerCase() && item.topic.toLowerCase() === topic.toLowerCase()
+    );
+    if (existing) existing.score = Math.round(existing.score * 0.7 + topicScore * 0.3);
+    else next.push({ subject: quiz.subject || 'Study material', topic, score: topicScore });
+  });
+  return next;
+}
+
+async function submitQuiz(quiz = activeQuiz) {
+  if (!quiz?.questions?.length) return;
+  const results = quiz.questions.map((question) => {
+    const response = selectedAnswers[question.id] || '';
+    return { response, correct: quizAnswerMatches(question, response) };
+  });
+  const correct = results.filter((result) => result.correct).length;
+  const score = Math.round((correct / quiz.questions.length) * 100);
+  const performance = topicPerformance(quiz, results);
+  const strongTopics = [...performance.entries()]
+    .filter(([, result]) => result.correct / result.total >= 0.7)
+    .map(([topic]) => topic);
+  const weakTopics = [...performance.entries()]
+    .filter(([, result]) => result.correct / result.total < 0.7)
+    .map(([topic]) => topic);
+  const weakQuestions = quiz.questions
+    .filter((question, index) => !results[index].correct)
+    .map((question) => ({ id: question.id, question: question.question, topic: question.topic }));
+  const quizRecord = {
+    id: uid(),
+    title: quiz.title,
+    subject: quiz.subject || 'Study material',
+    topic: quiz.topics?.join(', ') || quiz.questions[0].topic,
+    score,
+    correct,
+    total: quiz.questions.length,
+    weakQuestions,
+    strongTopics,
+    completedAt: new Date().toISOString(),
+  };
+  const nextState = {
+    ...state,
+    mastery: updatedMasteryFromQuiz(quiz, performance),
+    previousQuizzes: [quizRecord, ...state.previousQuizzes].slice(0, 30),
+  };
+  if (state.auth.profileComplete) {
+    const existingQuizHistory = Array.isArray(state.studentProfile.quizHistory)
+      ? state.studentProfile.quizHistory
+      : [];
+    const saved = await ProfileService.updateStudentProfile({
+      quizHistory: [quizRecord, ...existingQuizHistory].slice(0, 30),
+    });
+    nextState.studentProfile = saved.profile;
+    nextState.auth = normalizeAuth(saved.auth);
+  }
+  await storage.set(nextState);
+
+  document.getElementById('quizArea').innerHTML = `
+    <section class="quiz-results-summary">
+      <div><p class="eyebrow">Quiz complete</p><h2>${score}%</h2><p>${correct} of ${quiz.questions.length} correct. Your progress profile has been updated.</p></div>
+      <div class="quiz-result-signals">
+        <span><strong>Strong topics</strong>${escapeHtml(strongTopics.join(', ') || 'Keep building')}</span>
+        <span><strong>Review next</strong>${escapeHtml(weakTopics.join(', ') || 'No weak topic detected')}</span>
+      </div>
+    </section>
+    <div class="quiz-review-list">
+      ${quiz.questions.map((question, index) => `
+        <article class="quiz-review-item ${results[index].correct ? 'correct' : 'incorrect'}">
+          <div class="quiz-review-status">${results[index].correct ? 'Correct' : 'Review this'}</div>
+          <h3>${escapeHtml(question.question)}</h3>
+          <p><strong>Your answer:</strong> ${escapeHtml(results[index].response || 'No answer')}</p>
+          <p><strong>Correct answer:</strong> ${escapeHtml(question.answer)}</p>
+          <div class="quiz-explanation"><strong>Why</strong><p>${escapeHtml(question.explanation)}</p></div>
+        </article>
+      `).join('')}
+    </div>
+    <button id="newQuiz" class="secondary">Create another quiz</button>
+  `;
+  document.getElementById('newQuiz')?.addEventListener('click', renderQuiz);
   renderInsights();
   showToast('Quiz complete. Mastery signal updated.');
 }
@@ -2561,59 +2887,87 @@ function bindProfileSettings(renderAfter = renderProfile) {
 
 function renderPricing() {
   const rows = [
-    ['Basic AI Study Assistant', true, true, true],
-    ['Unlimited quizzes', false, true, true],
-    ['Chrome extension access', false, true, true],
-    ['Progress analytics', false, true, true],
-    ['Priority AI tutor mode', false, false, true],
-    ['Parent progress dashboard', false, false, true],
-    ['SAT/IB/IGCSE prep mode', false, false, true],
+    ['AI Tutor', 'Included', 'Included', '-'],
+    ['Study-set uploads', '25', 'Unlimited', '-'],
+    ['Flashcards and quizzes', 'Included', 'Unlimited', '-'],
+    ['AI-generated practice exams', '-', 'Included', '-'],
+    ['Curriculum-aware tutoring', '-', 'Included', '-'],
+    ['Progress insights', 'Tracking', 'Advanced analytics', 'School-wide analytics'],
+    ['Support', 'Email', 'Priority', 'Priority'],
+    ['Institution administration', '-', '-', 'Teacher and admin dashboards'],
   ];
 
   stage.innerHTML = `
-    ${panel(`
-      <p class="eyebrow">Pricing</p>
-      <h1 style="font-size:56px">Subscription story without real payments.</h1>
-      <p class="muted" style="max-width:680px">Choose Plan opens a fake checkout modal and updates the local plan badge. No Stripe or payment processing is connected.</p>
-    `, 'hero-panel')}
-    <section class="grid grid-3">
-      ${pricing
-        .map(
-          (tier) => `
-          <article class="price-card interactive ${tier.featured ? 'featured' : ''}">
-            <span class="pill ${tier.featured ? 'glow-pill' : ''}">${tier.featured ? 'Most Popular' : 'Demo plan'}</span>
-            <h2 style="margin-top:16px">${tier.name}</h2>
-            <p class="muted">${tier.description}</p>
-            <div class="price">${tier.price}</div>
-            <p class="muted">per month</p>
-            <button class="primary choose-plan" data-plan="${tier.name}">Choose Plan</button>
-            <div class="feature-list">${tier.features.map((feature) => `<p>Yes - ${feature}</p>`).join('')}</div>
-          </article>
-        `
-        )
-        .join('')}
-    </section>
-    ${panel(`
-      <div class="section-title"><div><p class="eyebrow">Comparison</p><h2>Plan matrix</h2></div></div>
-      <div style="overflow:auto">
-        <table style="width:100%;min-width:720px;border-spacing:0 8px">
-          <thead><tr><th>Feature</th><th>Starter</th><th>Plus</th><th>Premium</th></tr></thead>
-          <tbody>
-            ${rows
-              .map(
-                (row) =>
-                  `<tr>${row.map((cell, index) => `<td style="padding:12px;background:rgba(255,255,255,0.055)">${index === 0 ? cell : cell ? 'Yes' : '-'}</td>`).join('')}</tr>`
-              )
-              .join('')}
-          </tbody>
-        </table>
-      </div>
-    `)}
+    <div class="pricing-page">
+      <header class="pricing-hero">
+        <p class="pricing-kicker">Simple plans, serious study support</p>
+        <h1>Choose the support that keeps you moving.</h1>
+        <p>Build a reliable study rhythm with Learnova, then step up when exams, deeper analytics, or your whole institution need more.</p>
+        <span class="pricing-demo-note">Demo checkout only · No payment will be collected</span>
+      </header>
+
+      <section class="pricing-grid" aria-label="Learnova subscription plans">
+        ${pricing
+          .map(
+            (tier) => `
+            <article class="pricing-card ${tier.featured ? 'featured' : ''} ${tier.institutional ? 'institutional' : ''}">
+              <div class="pricing-card-topline">
+                <span class="pricing-plan-type">${tier.institutional ? 'For institutions' : 'For students'}</span>
+                ${tier.featured ? '<span class="pricing-popular"><span aria-hidden="true">★</span> Most Popular</span>' : ''}
+              </div>
+              <div class="pricing-card-heading">
+                <h2>${tier.name}</h2>
+                <p>${tier.description}</p>
+              </div>
+              <div class="pricing-price ${tier.institutional ? 'custom' : ''}">
+                <strong>${tier.price}</strong>
+                ${tier.cadence ? `<span>${tier.cadence}</span>` : ''}
+              </div>
+              <button class="${tier.featured ? 'primary' : 'secondary'} ${tier.institutional ? 'book-demo' : 'choose-plan'} pricing-cta" ${tier.institutional ? '' : `data-plan="${tier.name}"`}>${tier.cta}</button>
+              <div class="pricing-divider"></div>
+              <p class="pricing-feature-lead">${tier.featureLead || 'What you get:'}</p>
+              <ul class="pricing-features">
+                ${tier.features.map((feature) => `<li><span class="pricing-check" aria-hidden="true">✓</span><span>${feature}</span></li>`).join('')}
+              </ul>
+            </article>
+          `
+          )
+          .join('')}
+      </section>
+
+      <section class="pricing-comparison" aria-labelledby="pricingComparisonTitle">
+        <div class="pricing-section-heading">
+          <p class="pricing-kicker">Compare plans</p>
+          <h2 id="pricingComparisonTitle">The right level of support, at a glance.</h2>
+        </div>
+        <div class="pricing-table-wrap">
+          <table class="pricing-table">
+            <thead><tr><th>Feature</th><th>Starter</th><th>Learnova Pro</th><th>Schools & Institutions</th></tr></thead>
+            <tbody>
+              ${rows
+                .map(
+                  (row) =>
+                    `<tr>${row
+                      .map((cell, index) => {
+                        if (index === 0) return `<th scope="row">${cell}</th>`;
+                        if (cell === 'Included') return '<td><span class="comparison-included"><span aria-hidden="true">✓</span> Included</span></td>';
+                        if (cell === '-') return '<td><span class="comparison-empty" aria-label="Not included">—</span></td>';
+                        return `<td>${cell}</td>`;
+                      })
+                      .join('')}</tr>`
+                )
+                .join('')}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   `;
 
   document.querySelectorAll('.choose-plan').forEach((button) => {
     button.addEventListener('click', () => openCheckout(button.dataset.plan));
   });
+  document.querySelector('.book-demo')?.addEventListener('click', openSchoolDemo);
 }
 
 function openCheckout(plan) {
@@ -2622,13 +2976,13 @@ function openCheckout(plan) {
     <section class="modal-card">
       <div class="section-title">
         <div>
-          <p class="eyebrow">Fake checkout</p>
+          <p class="eyebrow">Demo checkout</p>
           <h2>${escapeHtml(plan)} plan</h2>
         </div>
         <button id="closeModal" class="secondary">Close</button>
       </div>
-      <p class="muted">This prototype does not connect Stripe or process payments. A real version would require secure authentication, backend billing logic, and subscription controls.</p>
-      <button id="setPlan" class="primary">Set demo plan</button>
+      <p class="muted">No payment will be collected in this prototype. Confirming only updates your local Learnova plan badge for the demo.</p>
+      <button id="setPlan" class="primary">Confirm demo plan</button>
     </section>
   `;
 
@@ -2639,6 +2993,26 @@ function openCheckout(plan) {
     closeModal();
     showToast(`${plan} plan selected for the demo.`);
   });
+}
+
+function openSchoolDemo() {
+  modal.classList.remove('hidden');
+  modal.innerHTML = `
+    <section class="modal-card">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">Schools & Institutions</p>
+          <h2>Bring Learnova to your school.</h2>
+        </div>
+        <button id="closeModal" class="secondary">Close</button>
+      </div>
+      <p class="muted">Demo booking is not connected in this prototype. The production version will include a secure contact and onboarding workflow for schools.</p>
+      <button id="dismissSchoolDemo" class="primary">Got it</button>
+    </section>
+  `;
+
+  document.getElementById('closeModal').addEventListener('click', closeModal);
+  document.getElementById('dismissSchoolDemo').addEventListener('click', closeModal);
 }
 
 function closeModal() {

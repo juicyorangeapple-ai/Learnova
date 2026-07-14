@@ -71,7 +71,7 @@ Production uses two separate settings:
 
 ```txt
 Website: not configured until Vercel returns the Learnova deployment URL
-AI API:  https://learnova-ilq6.onrender.com
+AI API:  https://learnova-i1q6.onrender.com
 ```
 
 `WEBSITE_URL` and `API_BASE_URL` are separate constants in `extension/learnova-config.js`. Never use the Render origin as `WEBSITE_URL`: Render hosts only the API. Until a verified public frontend URL is configured, the launcher safely opens the bundled extension workspace instead of an unrelated site.
@@ -230,6 +230,8 @@ The public demo service applies the following server-side limits:
 - Conversation history: latest 12 entries, at most 2,000 characters each
 - Attached structured context: bounded depth, keys, arrays, strings, and serialized size
 - AI output: 700 tokens by default, with a server-side maximum of 1,200
+- Content quiz output: 3,200 tokens by default, with a server-side maximum of 5,000
+- Quiz material: up to three PDF, DOCX, TXT, or image files, at most 10 MB each
 - OpenAI timeout: 30 seconds by default with one SDK retry
 - Rate limit: 30 chat requests per IP per 10 minutes by default
 - Model: selected only from the server environment; client model overrides are rejected
@@ -239,7 +241,7 @@ The rate limiter is in memory and resets when an instance restarts. CORS limits 
 
 ## Upload And Image Status
 
-File upload remains a frontend prototype. Learnova accepts PDF, DOCX, TXT, and image selections up to 10 MB each, stores only metadata locally, and sends bounded metadata such as filename/type/size as study context. File bytes are not uploaded, parsed, OCRed, summarized, or stored by the deployed server. A production parser would require a separate authenticated upload pipeline, malware scanning, storage limits, and retention controls.
+Learnova accepts PDF, DOCX, TXT, and image selections up to 10 MB each. File metadata stays in `chrome.storage.local`, while the original file is kept locally in IndexedDB. When the student explicitly generates a quiz, the selected material is sent to the Learnova AI proxy for that request so questions can be grounded in the actual content. The server does not persist uploaded files. A production release still needs authenticated uploads, malware scanning, retention controls, and clear per-user deletion policies.
 
 ## Mock Data Only
 
@@ -251,7 +253,7 @@ This prototype still does not connect:
 - Stripe or real payments
 - Any backend database
 
-Uploaded files are not parsed. Quiz generation, summaries, mastery updates, pricing checkout, and study plans are still mocked for demo purposes. The assistant uses the configured AI service: the local `server/` process in development or the deployed public service in production.
+Content-based quizzes use the configured AI service and selected study material. Quiz scoring, weak-question records, strong-topic signals, and mastery updates are stored locally. Summaries, pricing checkout, and some study-plan data remain demo workflows. The assistant uses the local `server/` process in development or the deployed public service in production.
 
 ## Assistant Architecture
 

@@ -194,7 +194,7 @@
         })),
         ...(state.assistantUploads || []).map((item) => ({
           title: item.name,
-          text: `${item.name} ${item.type} ${item.status}`,
+          text: `${item.name} ${item.type} ${item.status} ${item.detectedSubject || ''} ${(item.detectedTopics || []).join(' ')} ${String(item.extractedText || '').slice(0, 2000)}`,
           kind: 'Uploaded file',
         })),
       ];
@@ -463,6 +463,9 @@
           size: file.size,
           status: file.status,
           addedAt: file.addedAt,
+          detectedSubject: file.detectedSubject || '',
+          detectedTopics: file.detectedTopics || [],
+          extractedText: String(file.extractedText || '').slice(0, 4000),
         })),
         integrations: futureIntegrations,
       };
