@@ -132,6 +132,9 @@ Adapt terminology, command words, depth, and calculations to the supplied curric
 Test a useful mix of recall, understanding, and application. Avoid repeated questions and duplicate answer choices.
 Use calculation questions for quantitative material when appropriate. For literature, test the actual work, characters, themes, language, plot, symbolism, and analysis present in the source.
 Each question must include a correct answer and a concise teaching explanation. Do not fabricate quotations, source facts, or profile details.
+Before returning the quiz, independently solve every question and check every fact, calculation, unit, condition, and explanation against the supplied source and curriculum.
+Do not use a scientific convention that conflicts with the stated conditions or curriculum. Avoid unsupported or ambiguous facts when no source material defines them.
+For multiple-choice and true/false questions, the answer must exactly match one and only one option. Do not round a calculation incorrectly.
 When four or more questions are requested, use at least three suitable question types unless the material genuinely supports fewer.
 `;
 
@@ -526,6 +529,13 @@ function sanitizeQuizResponse(raw, request) {
       if (!prompt || !answer || (!allowStudySkills && genericStudyQuestion(prompt))) return null;
       let options = safeList(question.options, 8);
       if (type === 'true_false') options = ['True', 'False'];
+      if (['multiple_choice', 'true_false'].includes(type)) {
+        const matchingOption = options.find((option) => option.toLowerCase() === answer.toLowerCase());
+        if (!matchingOption) {
+          options = [...options.slice(0, Math.max(0, Math.min(options.length, 3))), answer];
+        }
+        options = [...new Set(options)];
+      }
       return {
         id: safeText(question.id, 80) || `question-${index + 1}`,
         type,
