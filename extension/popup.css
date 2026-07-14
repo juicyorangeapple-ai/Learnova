@@ -54,6 +54,7 @@ body {
 }
 
 button,
+input,
 select,
 textarea {
   font: inherit;
@@ -72,6 +73,7 @@ button {
 
 button:focus-visible,
 summary:focus-visible,
+input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--blue-strong) 42%, transparent);
@@ -469,6 +471,7 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
+input,
 select,
 textarea {
   width: 100%;
@@ -479,6 +482,7 @@ textarea {
   background: var(--input-bg);
 }
 
+input,
 select {
   min-height: 38px;
   padding: 7px 9px;
@@ -496,6 +500,7 @@ textarea {
   line-height: 1.45;
 }
 
+input:focus,
 select:focus,
 textarea:focus {
   border-color: color-mix(in srgb, var(--blue-strong) 55%, var(--line));

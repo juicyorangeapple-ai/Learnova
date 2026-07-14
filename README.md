@@ -196,7 +196,7 @@ Do not set `PORT` unless the host explicitly requires it; Render and Railway pro
 6. Set **Start Command** to `npm start`.
 7. Set **Health Check Path** to `/api/health`.
 8. Add the environment variables above in **Environment**.
-9. Deploy and confirm `https://learnova-ilq6.onrender.com/api/health` returns JSON with `ok: true`.
+9. Deploy and confirm `https://learnova-i1q6.onrender.com/api/health` returns JSON with `ok: true`.
 
 The current Render service must be a **Web Service**, not a Static Site. A response containing `x-render-routing: no-server` means Render has no running web-service deploy for that hostname; review the latest deploy log and the settings above, then run **Manual Deploy > Deploy latest commit**.
 
@@ -231,7 +231,7 @@ The public demo service applies the following server-side limits:
 - Attached structured context: bounded depth, keys, arrays, strings, and serialized size
 - AI output: 700 tokens by default, with a server-side maximum of 1,200
 - Content quiz output: 3,200 tokens by default, with a server-side maximum of 5,000
-- Quiz material: up to three PDF, DOCX, TXT, or image files, at most 10 MB each
+- Quiz material: up to three PDF, DOCX, TXT, PPT, PPTX, or image files, at most 10 MB each
 - OpenAI timeout: 30 seconds by default with one SDK retry
 - Rate limit: 30 chat requests per IP per 10 minutes by default
 - Model: selected only from the server environment; client model overrides are rejected
@@ -241,9 +241,15 @@ The rate limiter is in memory and resets when an instance restarts. CORS limits 
 
 ## Upload And Image Status
 
-Learnova accepts PDF, DOCX, TXT, and image selections up to 10 MB each. File metadata stays in `chrome.storage.local`, while the original file is kept locally in IndexedDB. When the student explicitly generates a quiz, the selected material is sent to the Learnova AI proxy for that request so questions can be grounded in the actual content. The server does not persist uploaded files. A production release still needs authenticated uploads, malware scanning, retention controls, and clear per-user deletion policies.
+Learnova accepts PDF, DOCX, TXT, PPT, PPTX, and image selections up to 10 MB each. Canonical study-set metadata is stored under `learnovaStudySets` in `chrome.storage.local`, while the original file is kept locally in IndexedDB. When the student explicitly generates a quiz, the selected material is sent to the Learnova AI proxy for that request so questions can be grounded in the actual content. The server does not persist uploaded files. If local processing fails, the study set remains visible with an `Uploaded - processing unavailable` status.
 
-## Mock Data Only
+## Local Data And Honest Progress
+
+Normal accounts start without sample subjects, uploads, deadlines, scores, or mastery percentages. The dashboard derives its subject list from the onboarding profile and real uploaded study sets. Progress is calculated from append-only activity events stored under `learnovaActivityEvents` in `chrome.storage.local`, including completed quiz answers, flashcard reviews, confirmed study sessions, and topics the student marks complete. Uploading or merely opening a study set never creates a mastery percentage.
+
+The centralized developer flag `DEMO_DATA_ENABLED` is set to `false`; normal accounts never load sample activity automatically.
+
+## Prototype Boundaries
 
 This prototype still does not connect:
 
@@ -253,7 +259,17 @@ This prototype still does not connect:
 - Stripe or real payments
 - Any backend database
 
-Content-based quizzes use the configured AI service and selected study material. Quiz scoring, weak-question records, strong-topic signals, and mastery updates are stored locally. Summaries, pricing checkout, and some study-plan data remain demo workflows. The assistant uses the local `server/` process in development or the deployed public service in production.
+Content-based quizzes use the configured AI service and selected study material. Quiz scoring, weak-question records, strong-topic signals, and event-derived progress are stored locally. Pricing checkout and external service connections remain demo workflows. The assistant uses the local `server/` process in development or the deployed public service in production.
+
+## Data Integrity Tests
+
+Run the local service tests from the project root:
+
+```bash
+node --test tests/data-integrity.test.mjs
+```
+
+For a clean unpacked-extension check, create a new profile with only Chemistry, Mathematics, and English, then confirm Progress has an empty state. Upload a Chemistry moles file, reload the extension from `chrome://extensions`, and confirm the study set remains `Not started`. Generate and complete a quiz from that set; only then should a persistent Moles progress result appear.
 
 ## Assistant Architecture
 
@@ -294,9 +310,9 @@ Chrome notifications support a limited number of action buttons, so the prototyp
 
 The extension dashboard includes three demo tiers:
 
-- Starter: $10/month
-- Plus: $50/month
-- Premium: $75/month
+- Starter: $14.99/month
+- Learnova Pro: $21.99/month
+- Schools & Institutions: custom pricing
 
 The **Choose Plan** buttons open a fake checkout modal and update the local dashboard plan badge. Real payments would later be handled through Stripe subscriptions with secure authentication and backend billing logic.
 
@@ -310,10 +326,10 @@ A production version would add:
 - Google Drive/Classroom integration
 - PDF/Slides parsing
 - Embeddings/vector search
-- Per-student mastery tracking
+- Cloud-synced per-student mastery tracking
 - Privacy/security controls
 - Stripe subscription billing
 
 ## Privacy Note
 
-This prototype uses mock data only. A real version would require secure authentication, user consent, encrypted storage, and careful handling of student data.
+This prototype stores each student's profile, study sets, and activity locally in their own Chrome profile. It does not connect real school accounts or grades. A production version would require secure authentication, user consent, encrypted cloud storage, and careful handling of student data.

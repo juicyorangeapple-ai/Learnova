@@ -93,7 +93,7 @@ const chatRateLimiter = rateLimit({
   },
 });
 
-const acceptedQuizExtensions = new Set(['.pdf', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.webp', '.gif']);
+const acceptedQuizExtensions = new Set(['.pdf', '.docx', '.txt', '.ppt', '.pptx', '.png', '.jpg', '.jpeg', '.webp', '.gif']);
 const quizUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -107,6 +107,8 @@ const quizUpload = multer({
     const acceptedType =
       file.mimetype === 'application/pdf' ||
       file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      file.mimetype === 'application/vnd.ms-powerpoint' ||
+      file.mimetype === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
       file.mimetype === 'text/plain' ||
       file.mimetype?.startsWith('image/');
     callback(null, acceptedType || acceptedQuizExtensions.has(extension));
@@ -455,6 +457,8 @@ function quizFileMime(file) {
   const byExtension = {
     '.pdf': 'application/pdf',
     '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     '.txt': 'text/plain',
     '.png': 'image/png',
     '.jpg': 'image/jpeg',

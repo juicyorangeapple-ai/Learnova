@@ -1,12 +1,5 @@
-const subjects = {
-  Mathematics: ['Algebra', 'Quadratics', 'Trigonometry', 'Circle theorems'],
-  Chemistry: ['Moles', 'Bonding', 'Rates of reaction', 'Electrolysis'],
-  Physics: ['Forces', 'Energy', 'Electricity', 'Waves'],
-  English: ['Analysis', 'Summary writing', 'Evaluation'],
-  'Computer Science': ['Binary', 'Networks', 'CPU', 'Programming'],
-};
-
 const WebsiteConfig = globalThis.LearnovaConfig || globalThis.LearnovaWebsiteConfig;
+const ProfileService = globalThis.LearnovaProfile;
 const extensionApi = globalThis.chrome?.storage?.local ? globalThis.chrome : null;
 const pageTitle = document.getElementById('pageTitle');
 const pageUrl = document.getElementById('pageUrl');
@@ -24,19 +17,27 @@ const websiteButtons = [openWorkspace, ...document.querySelectorAll('[data-websi
 let websiteAvailable = false;
 let checkingWebsite = false;
 let currentTab = {
-  title: 'Demo study page',
-  url: 'https://example.com/study-material',
+  title: 'Current page unavailable',
+  url: '',
   selectedText: '',
 };
 
-function fillSubjects() {
-  subject.innerHTML = Object.keys(subjects).map((item) => `<option value="${item}">${item}</option>`).join('');
-  subject.value = 'Chemistry';
-  fillTopics();
+async function fillSubjects() {
+  const stored = await ProfileService.getStudentProfile();
+  const profileSubjects = stored.profileLoaded ? stored.profile.subjects : [];
+  subject.innerHTML = [
+    '<option value="">Choose a saved subject</option>',
+    ...profileSubjects.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`),
+  ].join('');
 }
 
-function fillTopics() {
-  topic.innerHTML = subjects[subject.value].map((item) => `<option value="${item}">${item}</option>`).join('');
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
 function hostname(url) {
@@ -148,9 +149,9 @@ async function detectCurrentPage() {
     }
   } catch {
     currentTab = {
-      title: 'Demo study page',
-      url: 'https://example.com/study-material',
-      selectedText: 'Demo selected text from a study page.',
+      title: 'Current page unavailable',
+      url: '',
+      selectedText: '',
     };
   }
 
@@ -159,6 +160,11 @@ async function detectCurrentPage() {
 }
 
 async function saveMaterial(action = 'Saved from Chrome') {
+  if (!subject.value) {
+    status.textContent = 'Choose one of your saved subjects before saving this page.';
+    subject.focus();
+    return;
+  }
   const item = {
     id: crypto.randomUUID(),
     title: currentTab.title,
@@ -177,7 +183,7 @@ async function saveMaterial(action = 'Saved from Chrome') {
     title: currentTab.title,
     url: currentTab.url,
     selectedText: currentTab.selectedText,
-    studyWebsite: hostname(currentTab.url) || 'example.com',
+    studyWebsite: hostname(currentTab.url),
     assignment: notes.value,
     capturedAt: new Date().toISOString(),
   };
@@ -192,7 +198,6 @@ async function saveMaterial(action = 'Saved from Chrome') {
   status.textContent = action === 'Saved from Chrome' ? 'Saved from Chrome.' : `${action} queued from this page.`;
 }
 
-subject.addEventListener('change', fillTopics);
 save.addEventListener('click', () => saveMaterial());
 openWorkspace.addEventListener('click', () => openWebsiteRoute('workspace'));
 connectionStatus.addEventListener('click', checkWebsiteConnection);
@@ -215,6 +220,10 @@ workspaceDestination.textContent = WebsiteConfig.mode === 'production' && Websit
   : WebsiteConfig.mode === 'production'
     ? 'Extension workspace'
   : 'Local development workspace';
-fillSubjects();
-detectCurrentPage();
-checkWebsiteConnection();
+async function init() {
+  await fillSubjects();
+  await detectCurrentPage();
+  await checkWebsiteConnection();
+}
+
+init();

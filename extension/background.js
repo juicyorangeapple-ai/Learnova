@@ -1,4 +1,4 @@
-importScripts('learnova-config.js');
+importScripts('learnova-config.js', 'profile-service.js');
 
 const LearnovaConfig = globalThis.LearnovaConfig || globalThis.LearnovaWebsiteConfig;
 const WebsiteConfig = LearnovaConfig;
@@ -35,12 +35,12 @@ const DEFAULT_FOCUS = {
     todayKey: '',
     todayMinutes: 0,
     byDomain: {},
-    weekly: [18, 24, 14, 32, 20, 11, 16],
-    monthly: [62, 70, 48, 84, 55, 76, 44, 66],
-    focusSessions: [24, 31, 28, 35, 42],
+    weekly: [0, 0, 0, 0, 0, 0, 0],
+    monthly: [0, 0, 0, 0, 0, 0, 0, 0],
+    focusSessions: [],
     interventions: 0,
-    timeSavedWeek: 75,
-    mostProductiveDay: 'Wednesday',
+    timeSavedWeek: 0,
+    mostProductiveDay: '',
   },
 };
 
@@ -184,12 +184,18 @@ async function evaluateActiveTab() {
 }
 
 async function intervene(tab, domain, minutes, focus) {
+  const storedProfile = await globalThis.LearnovaProfile.getStudentProfile();
+  const priority = storedProfile.profileLoaded && storedProfile.profile.personalizationEnabled !== false
+    ? storedProfile.profile.weakTopics[0] || storedProfile.profile.subjects[0] || ''
+    : '';
   if (focus.interventionLevel === 1) {
     await chrome.notifications.create(`learnova-${domain}-${Date.now()}`, {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
       title: 'Small reminder',
-      message: `You've spent ${minutes} minutes on ${domain}. Ready for a quick Chemistry quiz?`,
+      message: priority
+        ? `You've spent ${minutes} minutes on ${domain}. Ready for a quick ${priority} study reset?`
+        : `You've spent ${minutes} minutes on ${domain}. Ready for a quick study reset?`,
       buttons: [{ title: 'Study Now' }, { title: 'Snooze' }],
       priority: 1,
     });
@@ -197,7 +203,7 @@ async function intervene(tab, domain, minutes, focus) {
   }
 
   if (focus.interventionLevel === 2) {
-    await injectStrongReminder(tab.id, domain, minutes, focus);
+    await injectStrongReminder(tab.id, domain, minutes, focus, priority);
     return;
   }
 
@@ -208,12 +214,12 @@ async function intervene(tab, domain, minutes, focus) {
   });
 }
 
-async function injectStrongReminder(tabId, domain, minutes, focus) {
+async function injectStrongReminder(tabId, domain, minutes, focus, priority) {
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
-      args: [domain, minutes, focus.snoozeEnabled, focus.snoozeDuration],
-      func: (siteDomain, spentMinutes, snoozeEnabled, snoozeDuration) => {
+      args: [domain, minutes, focus.snoozeEnabled, focus.snoozeDuration, priority],
+      func: (siteDomain, spentMinutes, snoozeEnabled, snoozeDuration, studyPriority) => {
         const existing = document.getElementById('learnova-focus-overlay');
         if (existing) existing.remove();
 
@@ -271,7 +277,7 @@ async function injectStrongReminder(tabId, domain, minutes, focus) {
           <section class="learnova-focus-card">
             <p style="margin:0;color:#4de3ff;font-size:12px;font-weight:900;letter-spacing:.16em;text-transform:uppercase">Learnova Focus Coach</p>
             <h1>You planned to study today.</h1>
-            <p>You've spent ${spentMinutes} minutes on ${siteDomain}. Your weakest topic is <strong style="color:#fff">Chemistry: Moles</strong>.</p>
+            <p id="learnova-focus-context"></p>
             <p>Take one quick 10-minute session? No pressure. Just a small reset.</p>
             <div class="learnova-focus-actions">
               <button class="learnova-primary" id="learnova-start">Start Studying</button>
@@ -281,6 +287,9 @@ async function injectStrongReminder(tabId, domain, minutes, focus) {
           </section>
         `;
         document.body.appendChild(overlay);
+        document.getElementById('learnova-focus-context').textContent = studyPriority
+          ? `You've spent ${spentMinutes} minutes on ${siteDomain}. A possible study focus is ${studyPriority}.`
+          : `You've spent ${spentMinutes} minutes on ${siteDomain}. Ready for a small study reset?`;
 
         document.getElementById('learnova-start').addEventListener('click', () => {
           chrome.runtime.sendMessage({ type: 'learnova-open-route', route: 'quiz' });

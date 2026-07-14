@@ -104,13 +104,10 @@
       const queryTokens = tokenize(query);
       const mastery = [...(state.mastery || [])].sort((a, b) => a.score - b.score);
       const profileWeakTopics = asList(profile.weakTopics);
-      const hasLearningHistory = asList(profile.quizHistory).length > 0;
       const weak = profileWeakTopics.length
         ? profileWeakTopics.map((topic) => ({ subject: 'Profile priority', topic, score: 'student flagged' }))
-        : hasLearningHistory
-          ? mastery.slice(0, 4)
-          : [];
-      const strong = hasLearningHistory ? mastery.slice(-3).reverse() : [];
+        : mastery.slice(0, 4);
+      const strong = mastery.slice(-3).reverse();
       const overview = [
         profile.name,
         profile.yearGroup || profile.grade,
@@ -172,10 +169,10 @@
     retrieve(query, state) {
       const queryTokens = tokenize(query);
       const materials = [
-        ...(state.materials || []).map((item) => ({
-          title: item.title,
-          text: `${item.subject} ${item.topic || item.type} ${item.type || ''}`,
-          kind: 'Material',
+        ...(state.studySets || state.assistantUploads || []).map((item) => ({
+          title: item.displayTitle || item.name,
+          text: `${item.subject || item.detectedSubject || ''} ${item.topic || ''} ${(item.detectedTopics || []).join(' ')} ${item.fileType || item.type || ''} ${String(item.extractedText || '').slice(0, 2000)}`,
+          kind: 'Uploaded study set',
         })),
         ...(state.savedPages || []).map((item) => ({
           title: item.title,
@@ -191,11 +188,6 @@
           title: item.title,
           text: `${item.subject} ${item.topic} ${item.score}`,
           kind: 'Previous quiz',
-        })),
-        ...(state.assistantUploads || []).map((item) => ({
-          title: item.name,
-          text: `${item.name} ${item.type} ${item.status} ${item.detectedSubject || ''} ${(item.detectedTopics || []).join(' ')} ${String(item.extractedText || '').slice(0, 2000)}`,
-          kind: 'Uploaded file',
         })),
       ];
       return topItems(
@@ -415,7 +407,7 @@
       const profile = state.studentProfile || {};
       const personalizationEnabled = state.personalizationEnabled !== false && Object.keys(profile).length > 0;
       const profileWeakTopics = asList(profile.weakTopics);
-      const hasLearningHistory = asList(profile.quizHistory).length > 0;
+      const hasLearningHistory = mastery.length > 0;
       return {
         query,
         sourcesUsed,
@@ -457,13 +449,14 @@
         profileContext: personalizationEnabled ? state.profileContext || {} : {},
         browser: state.browserContext || {},
         conversationHistory: state.conversationHistory || [],
-        uploadedFiles: (state.assistantUploads || []).slice(0, 12).map((file) => ({
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          status: file.status,
-          addedAt: file.addedAt,
-          detectedSubject: file.detectedSubject || '',
+        uploadedFiles: (state.studySets || state.assistantUploads || []).slice(0, 12).map((file) => ({
+          studySetId: file.studySetId || file.id,
+          name: file.displayTitle || file.name,
+          type: file.fileType || file.type,
+          size: file.fileSize || file.size,
+          status: file.processingStatus || file.status,
+          addedAt: file.uploadedAt || file.addedAt,
+          detectedSubject: file.subject || file.detectedSubject || '',
           detectedTopics: file.detectedTopics || [],
           extractedText: String(file.extractedText || '').slice(0, 4000),
         })),

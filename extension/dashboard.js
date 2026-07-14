@@ -1,11 +1,3 @@
-const subjects = {
-  Mathematics: ['Algebra', 'Quadratics', 'Trigonometry', 'Circle theorems'],
-  Chemistry: ['Moles', 'Bonding', 'Rates of reaction', 'Electrolysis'],
-  Physics: ['Forces', 'Energy', 'Electricity', 'Waves'],
-  English: ['Analysis', 'Summary writing', 'Evaluation'],
-  'Computer Science': ['Binary', 'Networks', 'CPU', 'Programming'],
-};
-
 const defaultDistractingSites = [
   ['youtube.com', 20],
   ['tiktok.com', 5],
@@ -37,23 +29,22 @@ const defaultFocus = {
   analytics: {
     todayKey: '',
     todayMinutes: 0,
-    byDomain: {
-      'youtube.com': 31,
-      'instagram.com': 12,
-      'discord.com': 18,
-    },
-    weekly: [18, 24, 14, 32, 20, 11, 16],
-    monthly: [62, 70, 48, 84, 55, 76, 44, 66],
-    focusSessions: [24, 31, 28, 35, 42],
-    interventions: 4,
-    timeSavedWeek: 75,
-    mostProductiveDay: 'Wednesday',
+    byDomain: {},
+    weekly: [0, 0, 0, 0, 0, 0, 0],
+    monthly: [0, 0, 0, 0, 0, 0, 0, 0],
+    focusSessions: [],
+    interventions: 0,
+    timeSavedWeek: 0,
+    mostProductiveDay: '',
   },
 };
 
 const ThemeManager = globalThis.LearnovaTheme;
 const OnboardingTransition = globalThis.LearnovaOnboardingTransition;
 const ProfileService = globalThis.LearnovaProfile;
+const StudySetService = globalThis.LearnovaStudySets;
+const ActivityService = globalThis.LearnovaActivity;
+const DataMigration = globalThis.LearnovaDataMigration;
 const defaultThemePreference = ThemeManager.defaultPreference;
 const accents = ThemeManager.accents;
 const themes = ThemeManager.themes;
@@ -92,75 +83,17 @@ const defaultState = {
   onboarded: false,
   aiProvider: 'openai',
   theme: defaultThemePreference,
-  studentProfile: {
-    name: 'Alex Student',
-    email: '',
-    grade: 10,
-    yearGroup: 'Year 10',
-    ageRange: '',
-    countryRegion: '',
-    avatarDataUrl: '',
-    curriculumChoice: 'IGCSE',
-    customCurriculum: '',
-    curriculum: 'Cambridge IGCSE',
-    schoolName: '',
-    subjects: ['Mathematics', 'Chemistry', 'Physics', 'English', 'Computer Science'],
-    targetGrades: 'A/A*',
-    upcomingDeadlines: ['Chemistry ATP revision', 'English essay', 'Math practice'],
-    goals: ['Raise Chemistry confidence', 'Prepare for end-of-term exams', 'Build a consistent revision habit'],
-    weakTopics: ['Chemistry moles', 'Math quadratics', 'English analysis'],
-    strengths: ['Physics energy', 'English summary writing', 'Computer Science binary'],
-    learningPreferences: ['simple explanations first', 'short quizzes', 'visual summaries', 'step-by-step examples'],
-    studyStyle: ['Flashcards', 'Quizzes', 'Step-by-step explanations'],
-    universityInterests: '',
-    extracurricularInterests: '',
-    dailyStudyTime: '45 minutes',
-    preferredExplanationStyle: 'Simple, step-by-step explanations',
-    personalizationEnabled: true,
-    quizHistory: [
-      { title: 'Quadratics checkpoint', subject: 'Mathematics', topic: 'Quadratics', score: 78 },
-      { title: 'Moles basics', subject: 'Chemistry', topic: 'Moles', score: 62 },
-      { title: 'Energy stores', subject: 'Physics', topic: 'Energy', score: 84 },
-    ],
-    revisionHistory: [
-      'Reviewed Chemistry moles yesterday',
-      'Completed Math quadratics flashcards this week',
-      'Skipped Physics electricity planner task',
-    ],
-  },
+  studentProfile: {},
   auth: defaultAuth,
-  browserContext: {
-    title: 'Waves revision guide',
-    url: 'https://example.com/physics/waves',
-    selectedText: 'Waves transfer energy without transferring matter.',
-    studyWebsite: 'example.com',
-    assignment: 'Physics waves checkpoint due Friday',
-  },
-  previousQuizzes: [
-    { title: 'Quadratics checkpoint', subject: 'Mathematics', topic: 'Quadratics', score: 78 },
-    { title: 'Moles basics', subject: 'Chemistry', topic: 'Moles', score: 62 },
-  ],
+  browserContext: {},
+  previousQuizzes: [],
   assistantUploads: [],
-  flashcardMemory: [
-    { subject: 'Chemistry', topic: 'Moles', front: 'What is Avogadro constant?', back: '6.02 x 10^23 particles per mole.' },
-    { subject: 'Physics', topic: 'Waves', front: 'What do waves transfer?', back: 'Energy, not matter.' },
-  ],
+  studySets: [],
+  activityEvents: [],
+  flashcardMemory: [],
   savedPages: [],
-  materials: [
-    { title: 'Chemistry moles revision sheet', subject: 'Chemistry', type: 'PDF', topic: 'Moles' },
-    { title: 'Quadratics class notes', subject: 'Mathematics', type: 'Notes', topic: 'Quadratics' },
-    { title: 'Electric circuits slides', subject: 'Physics', type: 'Slides', topic: 'Electricity' },
-    { title: 'English summary examples', subject: 'English', type: 'Doc', topic: 'Summary writing' },
-  ],
-  mastery: [
-    { subject: 'Chemistry', topic: 'Moles', score: 42 },
-    { subject: 'Mathematics', topic: 'Quadratics', score: 68 },
-    { subject: 'Physics', topic: 'Energy', score: 82 },
-    { subject: 'English', topic: 'Summary writing', score: 74 },
-    { subject: 'Computer Science', topic: 'Binary', score: 71 },
-    { subject: 'Physics', topic: 'Electricity', score: 57 },
-    { subject: 'Chemistry', topic: 'Bonding', score: 64 },
-  ],
+  materials: [],
+  mastery: [],
   focus: defaultFocus,
 };
 
@@ -179,21 +112,6 @@ const routes = [
   { id: 'focus', label: 'Focus Coach', icon: 'focus', group: 'more' },
   { id: 'pricing', label: 'Pricing', icon: 'pricing', group: 'more' },
   { id: 'roadmap', label: 'Future roadmap', icon: 'roadmap', group: 'more' },
-];
-
-const planner = [
-  { day: 'Mon', task: 'Chemistry moles practice', detail: '25 min active recall', locked: false },
-  { day: 'Tue', task: 'Math quadratics quiz', detail: '20 min checkpoint', locked: false },
-  { day: 'Wed', task: 'Physics electricity flashcards', detail: '15 min rapid review', locked: false },
-  { day: 'Thu', task: 'English summary timed practice', detail: '30 min exam rhythm', locked: false },
-  { day: 'Fri', task: 'Exam strategy planner', detail: 'Premium planning layer', locked: true },
-];
-
-const flashcards = [
-  ['Chemistry', 'Moles', 'What is Avogadro constant?', '6.02 x 10^23 particles per mole.'],
-  ['Mathematics', 'Quadratics', 'What does the discriminant tell you?', 'How many real roots a quadratic has.'],
-  ['Physics', 'Electricity', "State Ohm's law.", 'Voltage equals current multiplied by resistance: V = IR.'],
-  ['Computer Science', 'Binary', 'What is 1010 in denary?', '10.'],
 ];
 
 const pricing = [
@@ -343,8 +261,7 @@ function normalizeAuth(raw = {}) {
 }
 
 function normalizeStudentProfile(raw = {}) {
-  const source = raw && Object.keys(raw).length ? raw : defaultState.studentProfile;
-  return ProfileService.normalizeStudentProfile(source);
+  return ProfileService.normalizeStudentProfile(raw || {});
 }
 
 function resolveTheme(preference = defaultThemePreference) {
@@ -364,6 +281,11 @@ async function setThemePreference(nextTheme, options = {}) {
 }
 
 function normalizeState(raw = {}) {
+  const studySets = (Array.isArray(raw.studySets) ? raw.studySets : raw.assistantUploads || [])
+    .map((item) => StudySetService.normalizeStudySet(item));
+  const activityEvents = (Array.isArray(raw.activityEvents) ? raw.activityEvents : [])
+    .map((event) => ActivityService.normalizeEvent(event))
+    .filter(Boolean);
   return {
     ...defaultState,
     ...raw,
@@ -371,30 +293,34 @@ function normalizeState(raw = {}) {
     focus: normalizeFocus(raw.focus),
     theme: normalizeThemePreference(raw.theme),
     auth: normalizeAuth(raw.auth),
-    materials: raw.materials || defaultState.materials,
-    mastery: raw.mastery || defaultState.mastery,
-    savedPages: raw.savedPages || [],
+    materials: [],
+    mastery: ActivityService.calculateTopicProgress(activityEvents),
+    savedPages: Array.isArray(raw.savedPages) ? raw.savedPages : [],
     aiProvider: raw.aiProvider && raw.aiProvider !== 'mock' ? raw.aiProvider : defaultState.aiProvider,
     studentProfile: normalizeStudentProfile(raw.studentProfile),
     browserContext: { ...defaultState.browserContext, ...(raw.browserContext || {}) },
-    previousQuizzes: raw.previousQuizzes || defaultState.previousQuizzes,
-    assistantUploads: raw.assistantUploads || [],
-    flashcardMemory: raw.flashcardMemory || defaultState.flashcardMemory,
+    previousQuizzes: Array.isArray(raw.previousQuizzes) ? raw.previousQuizzes : [],
+    assistantUploads: studySets,
+    studySets,
+    activityEvents,
+    flashcardMemory: Array.isArray(raw.flashcardMemory) ? raw.flashcardMemory : [],
   };
 }
 
 const storage = {
   async get() {
     if (extensionStorage) {
-      const [stored, savedProfile] = await Promise.all([
+      const [stored, savedProfile, studySets, activityEvents] = await Promise.all([
         extensionStorage.get({
-          learnovaState: defaultState,
+          learnovaState: {},
           learnovaSavedPages: [],
           learnovaFocus: defaultFocus,
           learnovaBrowserContext: defaultState.browserContext,
           learnovaTheme: defaultThemePreference,
         }),
         ProfileService.getStudentProfile(),
+        StudySetService.getStudySets(),
+        ActivityService.getEvents(),
       ]);
       return normalizeState({
         ...defaultState,
@@ -405,10 +331,17 @@ const storage = {
         theme: stored.learnovaTheme || stored.learnovaState.theme,
         studentProfile: savedProfile.profileLoaded ? savedProfile.profile : stored.learnovaState.studentProfile,
         auth: savedProfile.profileLoaded ? savedProfile.auth : stored.learnovaState.auth,
+        studySets,
+        assistantUploads: studySets,
+        activityEvents,
       });
     }
 
-    const savedProfile = await ProfileService.getStudentProfile();
+    const [savedProfile, studySets, activityEvents] = await Promise.all([
+      ProfileService.getStudentProfile(),
+      StudySetService.getStudySets(),
+      ActivityService.getEvents(),
+    ]);
     return normalizeState({
       ...defaultState,
       ...JSON.parse(localStorage.getItem('learnovaState') || '{}'),
@@ -417,6 +350,9 @@ const storage = {
       savedPages: JSON.parse(localStorage.getItem('learnovaSavedPages') || '[]'),
       studentProfile: savedProfile.profileLoaded ? savedProfile.profile : undefined,
       auth: savedProfile.profileLoaded ? savedProfile.auth : undefined,
+      studySets,
+      assistantUploads: studySets,
+      activityEvents,
     });
   },
   async set(next) {
@@ -429,6 +365,8 @@ const storage = {
         learnovaFocus: state.focus,
         learnovaBrowserContext: state.browserContext,
         learnovaTheme: state.theme,
+        learnovaStudySets: state.studySets,
+        learnovaActivityEvents: state.activityEvents,
       });
       return;
     }
@@ -437,6 +375,8 @@ const storage = {
     localStorage.setItem('learnovaFocus', JSON.stringify(state.focus));
     localStorage.setItem('learnovaBrowserContext', JSON.stringify(state.browserContext));
     localStorage.setItem('learnovaThemeCache', JSON.stringify(state.theme));
+    localStorage.setItem('learnovaStudySets', JSON.stringify(state.studySets));
+    localStorage.setItem('learnovaActivityEvents', JSON.stringify(state.activityEvents));
   },
 };
 
@@ -444,7 +384,7 @@ async function getProfile() {
   const stored = await ProfileService.getStudentProfile();
   return {
     ...stored,
-    profile: stored.profileLoaded ? normalizeStudentProfile(stored.profile) : normalizeStudentProfile(defaultState.studentProfile),
+    profile: normalizeStudentProfile(stored.profile),
     auth: normalizeAuth(stored.auth),
   };
 }
@@ -483,7 +423,7 @@ async function clearProfile() {
   await storage.set({
     ...state,
     onboarded: false,
-    studentProfile: defaultState.studentProfile,
+    studentProfile: {},
     auth: defaultAuth,
   });
   await OnboardingTransition?.reset();
@@ -734,6 +674,16 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'recently';
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
+}
+
 function uid() {
   return globalThis.crypto?.randomUUID?.() || `learnova-${Date.now()}-${Math.random()}`;
 }
@@ -746,7 +696,7 @@ function showToast(message) {
 }
 
 function initials(name) {
-  return String(name || 'Alex Student')
+  return String(name || 'Student')
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -757,8 +707,9 @@ function initials(name) {
 
 function updateProfileChip() {
   const profile = state.studentProfile;
-  profileName.textContent = profile.name || 'Alex Student';
-  profileGrade.textContent = profile.yearGroup || profile.grade || 10;
+  profileName.textContent = profile.name || 'Student';
+  profileGrade.textContent = profile.yearGroup || profile.grade || 'Profile';
+  profileButton.title = [profile.name, profile.yearGroup || profile.grade, state.plan].filter(Boolean).join(' - ');
   if (profile.avatarDataUrl) {
     profileAvatar.innerHTML = `<img src="${profile.avatarDataUrl}" alt="">`;
     profileAvatar.classList.add('has-image');
@@ -842,16 +793,35 @@ function mini(content, className = '') {
 }
 
 function weakestTopic() {
-  return [...state.mastery].sort((a, b) => a.score - b.score)[0];
+  return [...state.mastery].sort((a, b) => a.score - b.score)[0] || null;
 }
 
 function masteryAverage() {
+  if (!state.mastery.length) return null;
   return Math.round(state.mastery.reduce((sum, item) => sum + item.score, 0) / state.mastery.length);
 }
 
+function profileWeakPriority() {
+  const label = toList(state.studentProfile.weakTopics)[0] || '';
+  if (!label) return null;
+  const profileSubjects = toList(state.studentProfile.subjects);
+  const matchedSubject = profileSubjects.find((item) => label.toLowerCase().includes(item.toLowerCase()));
+  const matchingStudySet = state.studySets.find((item) =>
+    [item.topic, ...(item.detectedTopics || [])].some((topic) => topic && label.toLowerCase().includes(String(topic).toLowerCase()))
+  );
+  const subject = matchedSubject || matchingStudySet?.subject || '';
+  const topic = subject
+    ? label.replace(new RegExp(`^${escapeRegExp(subject)}\\s*[:\\-]?\\s*`, 'i'), '').trim() || label
+    : label;
+  return { subject, topic, score: null, source: 'Student profile' };
+}
+
 function profileNextAction() {
-  const weak = toList(state.studentProfile.weakTopics)[0] || `${weakestTopic().subject}: ${weakestTopic().topic}`;
+  const measured = weakestTopic();
+  const profilePriority = profileWeakPriority();
+  const weak = profilePriority?.topic || (measured ? `${measured.subject}: ${measured.topic}` : '');
   const style = toList(state.studentProfile.studyStyle)[0] || 'quiz';
+  if (!weak) return 'Upload study material or complete a quiz to get a grounded recommendation.';
   return `Start with ${weak}, then use ${style.toLowerCase()} for active recall.`;
 }
 
@@ -896,7 +866,7 @@ function studySetTypeLabel(type = '') {
   if (value.includes('word') || value.includes('docx')) return 'DOCX';
   if (value.includes('text') || value.includes('txt')) return 'TXT';
   if (value.includes('image')) return 'IMAGE';
-  if (value.includes('slide')) return 'SLIDES';
+  if (value.includes('slide') || value.includes('presentation') || value.includes('powerpoint') || value.includes('ppt')) return 'SLIDES';
   if (value.includes('chrome') || value.includes('web')) return 'WEB PAGE';
   return String(type || 'NOTES').toUpperCase();
 }
@@ -910,28 +880,23 @@ function studySetEstimate(type = '') {
 }
 
 function getStudySets() {
-  const materials = state.materials.map((item, index) => ({
-    id: `material-${index}`,
-    title: item.title,
-    subject: item.subject || 'General',
-    type: studySetTypeLabel(item.type),
-    topics: [item.topic || item.type || 'General review'],
-    estimate: studySetEstimate(item.type),
-    lastStudied: index === 0 ? 'Today' : index === 1 ? 'Yesterday' : 'This week',
-    source: 'Saved material',
-  }));
-  const uploads = state.assistantUploads.map((item) => ({
-    id: `upload-${item.id}`,
-    title: item.name,
-    subject: item.detectedSubject || item.subject || 'Uploaded material',
-    type: studySetTypeLabel(item.type),
+  const uploads = state.studySets.map((item) => ({
+    id: item.studySetId,
+    studySetId: item.studySetId,
+    title: item.displayTitle,
+    subject: item.subject || 'Subject not selected',
+    type: studySetTypeLabel(item.fileType),
     topics: item.detectedTopics?.length
       ? item.detectedTopics
-      : [item.topic || 'Choose a topic when generating a quiz'],
-    estimate: studySetEstimate(item.type),
-    lastStudied: 'Just added',
+      : [item.topic || 'Choose a topic before generating a quiz'],
+    estimate: studySetEstimate(item.fileType),
+    lastStudied: item.lastStudiedAt ? `Last studied ${formatDate(item.lastStudiedAt)}` : 'Not started',
     source: 'Uploaded file',
-    uploadId: item.id,
+    uploadId: item.studySetId,
+    processingStatus: item.processingStatus,
+    extractionStatus: item.extractionStatus,
+    activityStatus: item.activityStatus,
+    lastStudiedAt: item.lastStudiedAt,
   }));
   const savedPages = state.savedPages.map((item, index) => ({
     id: `page-${item.id || index}`,
@@ -943,7 +908,7 @@ function getStudySets() {
     lastStudied: item.savedAt ? 'Saved recently' : 'Saved from Chrome',
     source: 'Chrome capture',
   }));
-  return [...uploads, ...materials, ...savedPages];
+  return [...uploads, ...savedPages];
 }
 
 function findStudySet(id = activeStudySetId) {
@@ -951,11 +916,9 @@ function findStudySet(id = activeStudySetId) {
 }
 
 function weakestMastery() {
-  return [...(state.mastery || [])].sort((left, right) => left.score - right.score)[0] || {
-    subject: 'Chemistry',
-    topic: 'Moles',
-    score: 42,
-  };
+  return [...(state.mastery || [])].sort((left, right) => left.score - right.score)[0]
+    || profileWeakPriority()
+    || null;
 }
 
 function getCompanionStudySet() {
@@ -986,7 +949,6 @@ async function getCompanionSuggestion(context) {
     prompt,
     injectProfileIntoAssistantContext({
       ...state,
-      subjects,
       conversationHistory: [],
       profileDebug: profileDebugSummary(storedProfile.profile, storedProfile.profileLoaded),
       isDevelopment,
@@ -999,16 +961,20 @@ function companionActionHandlers() {
   return {
     'start-quiz': async () => {
       const weak = weakestMastery();
-      pendingQuiz = { subject: weak.subject, topic: weak.topic };
+      pendingQuiz = weak ? { subject: weak.subject, topic: weak.topic } : null;
       setRoute('quiz');
-      requestAnimationFrame(() => document.getElementById('generateQuiz')?.click());
-      showToast(`Quick ${weak.topic} quiz ready.`);
+      if (weak) {
+        requestAnimationFrame(() => document.getElementById('generateQuiz')?.click());
+        showToast(`Quick ${weak.topic} quiz ready.`);
+      } else {
+        showToast('Choose a subject or study set for your quiz.');
+      }
     },
     'explain-weakest': async () => {
       const weak = weakestMastery();
-      const prompt = state.auth.profileComplete && state.studentProfile.personalizationEnabled !== false
+      const prompt = weak && state.auth.profileComplete && state.studentProfile.personalizationEnabled !== false
         ? `Explain my weakest topic, ${weak.subject}: ${weak.topic}, simply. Use a short example and finish with one question to check my understanding.`
-        : 'Help me choose a topic to review, then explain it simply with a short example and one check question.';
+        : 'Help me choose a topic from my saved subjects or study sets, then explain it simply with a short example and one check question.';
       openCompanionTutor(prompt, { send: true });
     },
     'continue-set': async (context) => {
@@ -1080,7 +1046,7 @@ function studySetCard(set) {
       <button class="study-set-title" data-open-study-set="${escapeHtml(set.id)}">${escapeHtml(set.title)}</button>
       <p class="study-set-subject">${escapeHtml(set.subject)}</p>
       <div class="study-set-topics">${set.topics.map((topic) => `<span>${escapeHtml(topic)}</span>`).join('')}</div>
-      <div class="study-set-footer"><span>Last studied ${escapeHtml(set.lastStudied)}</span><button class="text-action" data-open-study-set="${escapeHtml(set.id)}">Open</button></div>
+      <div class="study-set-footer"><span>${/unavailable/i.test(set.processingStatus || '') ? escapeHtml(set.processingStatus) : set.lastStudiedAt ? `Last studied ${escapeHtml(set.lastStudied)}` : 'Not started'}</span><button class="text-action" data-open-study-set="${escapeHtml(set.id)}">Open</button></div>
     </article>
   `;
 }
@@ -1099,8 +1065,29 @@ function studySetListRow(set) {
   `;
 }
 
-function openStudySet(id) {
+async function openStudySet(id) {
   activeStudySetId = id;
+  const set = findStudySet(id);
+  if (set?.studySetId) {
+    const now = new Date().toISOString();
+    try {
+      const updated = await StudySetService.updateStudySet(set.studySetId, {
+        lastStudiedAt: now,
+        activityStatus: 'In progress',
+      });
+      const studySets = state.studySets.map((item) => item.studySetId === updated.studySetId ? updated : item);
+      const activityEvents = await ActivityService.recordEvents([{
+        type: ActivityService.EVENT_TYPES.STUDY_SET_OPENED,
+        timestamp: now,
+        subject: updated.subject,
+        topic: updated.topic,
+        studySetId: updated.studySetId,
+      }]);
+      await storage.set({ ...state, studySets, assistantUploads: studySets, activityEvents });
+    } catch {
+      // Opening a saved set should still work if an activity timestamp cannot be written.
+    }
+  }
   setRoute('studyset');
 }
 
@@ -1151,7 +1138,7 @@ function focusModeCopy(mode) {
 
 function mostDistractingSite() {
   const entries = Object.entries(state.focus.analytics.byDomain || {});
-  if (!entries.length) return ['youtube.com', 0];
+  if (!entries.length) return ['', 0];
   return entries.sort((a, b) => b[1] - a[1])[0];
 }
 
@@ -1162,6 +1149,9 @@ function averageFocusSession() {
 }
 
 function chartBars(values, labelPrefix = 'Day') {
+  if (!Array.isArray(values) || !values.some((value) => Number(value) > 0)) {
+    return '<div class="empty-state"><p>No activity recorded yet.</p></div>';
+  }
   const max = Math.max(...values, 1);
   return `
     <div class="bar-chart">
@@ -1177,6 +1167,25 @@ function chartBars(values, labelPrefix = 'Day') {
         .join('')}
     </div>
   `;
+}
+
+function studyActivityStreak() {
+  const meaningfulTypes = new Set([
+    ActivityService.EVENT_TYPES.QUIZ_COMPLETED,
+    ActivityService.EVENT_TYPES.STUDY_SESSION_COMPLETED,
+    ActivityService.EVENT_TYPES.TOPIC_MARKED_COMPLETE,
+  ]);
+  const days = new Set(state.activityEvents
+    .filter((event) => meaningfulTypes.has(event.type))
+    .map((event) => String(event.timestamp).slice(0, 10))
+    .filter(Boolean));
+  let streak = 0;
+  const cursor = new Date();
+  while (days.has(cursor.toISOString().slice(0, 10))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
 }
 
 function toggleMarkup(checked, id, label = '') {
@@ -1209,10 +1218,12 @@ function renderInsights() {
   insightPanel.innerHTML = '';
 }
 
-function homeStudyAction({ label, detail, route, icon, prompt = '' }) {
+function homeStudyAction({ label, detail, route, icon, prompt = '', studySetId = '' }) {
   const assistantAttribute = prompt ? `data-home-assistant="${escapeHtml(prompt)}"` : '';
-  const routeAttribute = route ? `data-route="${route}"` : '';
-  const classes = route ? 'route-link' : 'home-assistant-action';
+  const routeAttribute = studySetId
+    ? `data-open-study-set="${escapeHtml(studySetId)}"`
+    : route ? `data-route="${route}"` : '';
+  const classes = studySetId ? '' : route ? 'route-link' : 'home-assistant-action';
   return `
     <button class="home-study-action ${classes}" ${routeAttribute} ${assistantAttribute}>
       <span class="home-action-icon">${iconSvg(icon)}</span>
@@ -1231,28 +1242,47 @@ function bindHomeActions(scope = document) {
   });
 }
 
+function suggestedStudyTasks() {
+  const priorities = toList(state.studentProfile.weakTopics);
+  const deadlines = toList(state.studentProfile.upcomingDeadlines);
+  const profileSubjects = toList(state.studentProfile.subjects);
+  const style = toList(state.studentProfile.studyStyle)[0] || 'active recall';
+  const labels = [...priorities, ...deadlines, ...profileSubjects]
+    .filter((item, index, values) => values.indexOf(item) === index)
+    .slice(0, 3);
+  return labels.map((label, index) => ({
+    label,
+    detail: index === 0 ? `Start with ${style.toLowerCase()}` : 'Add this to your next focused session',
+    route: index === 0 ? 'quiz' : index === 1 ? 'flashcards' : 'planner',
+  }));
+}
+
 function renderHome() {
   const weak = weakestTopic();
+  const priority = weak || profileWeakPriority();
   const profile = state.studentProfile;
   const firstName = (profile.name || 'Student').split(' ')[0];
   const sets = getStudySets();
-  const continueSet = sets[0];
-  const nextDeadline = toList(profile.upcomingDeadlines)[0] || 'No deadline added yet';
-  const priorityTopic = toList(profile.weakTopics)[0] || `${weak.subject}: ${weak.topic}`;
+  const continueSet = sets.find((set) => set.lastStudiedAt);
+  const nextDeadline = toList(profile.upcomingDeadlines)[0] || '';
+  const priorityTopic = priority ? [priority.subject, priority.topic].filter(Boolean).join(': ') : '';
+  const tasks = suggestedStudyTasks();
+  const measuredAverage = masteryAverage();
+  const focusLabel = priority?.topic || 'Add a study topic';
   stage.innerHTML = `
     <section class="home-stage">
       <div class="home-stage-copy">
         <p class="home-greeting"><span></span>${escapeHtml(firstName)}'s study space</p>
         <h1>What do you want to study today?</h1>
-        <p class="home-stage-subtitle">Learnova has a focused next step ready for your ${escapeHtml(profile.curriculum || 'coursework')}.</p>
-        <div class="home-stage-meta"><span>${escapeHtml(profile.yearGroup || `Year ${profile.grade}`)}</span><span>${escapeHtml(profile.curriculum || 'Curriculum')}</span><span>Next: ${escapeHtml(nextDeadline)}</span></div>
+        <p class="home-stage-subtitle">${priority ? `Start with a priority from your ${escapeHtml(profile.curriculum || 'coursework')}.` : 'Add material or choose a subject to begin a grounded study session.'}</p>
+        <div class="home-stage-meta"><span>${escapeHtml(profile.yearGroup || profile.grade || 'Level not set')}</span><span>${escapeHtml(profile.curriculum || 'Curriculum not set')}</span><span>${nextDeadline ? `Next: ${escapeHtml(nextDeadline)}` : 'No upcoming exams added'}</span></div>
       </div>
       <div class="home-study-art" aria-hidden="true">
         <div class="home-art-orbit orbit-one"></div>
         <div class="home-art-orbit orbit-two"></div>
         <div class="home-art-paper paper-one"><span></span><span></span><span></span></div>
         <div class="home-art-paper paper-two"><span></span><span></span></div>
-        <div class="home-art-badge"><small>Focus topic</small><strong>${escapeHtml(weak.topic)}</strong><span>${weak.score}% ready</span></div>
+        <div class="home-art-badge"><small>${weak ? 'Measured focus' : priority ? 'Profile priority' : 'Next step'}</small><strong>${escapeHtml(focusLabel)}</strong><span>${weak ? `${weak.score}% from quiz activity` : priority ? 'Self-identified focus' : 'No progress recorded yet'}</span></div>
         <div class="home-art-marker"></div>
       </div>
     </section>
@@ -1260,11 +1290,11 @@ function renderHome() {
     <section class="home-intent-grid" aria-label="Choose a study action">
       ${(() => {
         const actions = [
-          { label: 'Continue studying', detail: continueSet ? continueSet.title : 'Pick up a study set', icon: 'library', route: continueSet ? 'studyset' : 'library' },
+          { label: 'Continue studying', detail: continueSet ? continueSet.title : 'Open a study set to begin', icon: 'library', route: continueSet ? '' : 'library', studySetId: continueSet?.id || '' },
           { label: 'Upload notes', detail: 'Make a new study set', icon: 'capture', route: 'capture' },
           { label: 'Generate flashcards', detail: 'Quick active recall', icon: 'flashcards', route: 'flashcards' },
-          { label: 'Practice quiz', detail: `${weak.topic} is ready`, icon: 'quiz', route: 'quiz' },
-          { label: 'Ask Learnova', detail: 'Get a study recommendation', icon: 'assistant', prompt: `What should I study today? Use my weak topics, next deadline (${nextDeadline}), available study time, and preferred study style.` },
+          { label: 'Practice quiz', detail: priority ? `Practice ${priority.topic}` : 'Choose a subject and topic', icon: 'quiz', route: 'quiz' },
+          { label: 'Ask Learnova', detail: 'Get a study recommendation', icon: 'assistant', prompt: 'What should I study today? Use only my saved subjects, weak topics, real deadlines, available study time, and recorded activity. Do not invent tasks or progress.' },
         ];
         return actions.map(homeStudyAction).join('');
       })()}
@@ -1272,39 +1302,39 @@ function renderHome() {
 
     <section class="home-flow-layout">
       <section class="home-session-flow">
-        <div class="home-section-heading"><div><p>Recommended next</p><h2>One small study session</h2></div><span>${escapeHtml(profile.dailyStudyTime || '45 min')} available</span></div>
-        <button class="home-session-main route-link" data-route="quiz">
+        <div class="home-section-heading"><div><p>Recommended next</p><h2>One small study session</h2></div><span>${escapeHtml(profile.dailyStudyTime || 'Study time not set')}</span></div>
+        <button class="home-session-main route-link" data-route="${priority ? 'quiz' : 'capture'}">
           <span class="home-session-index">01</span>
-          <span class="home-session-content"><small>Start here</small><strong>${escapeHtml(priorityTopic)}</strong><em>10 min quiz, then a focused correction pass</em></span>
+          <span class="home-session-content"><small>Start here</small><strong>${escapeHtml(priorityTopic || 'Add your first study material')}</strong><em>${priority ? 'Use a short quiz, then review any missed questions' : 'Upload notes, a worksheet, or a PDF to create a study set'}</em></span>
           <span class="home-session-play" aria-hidden="true">Start</span>
         </button>
         <div class="home-session-steps">
-          ${planner.slice(1, 3).map((item, index) => `<button class="route-link" data-route="${index === 0 ? 'flashcards' : 'planner'}"><span>0${index + 2}</span><strong>${escapeHtml(item.task)}</strong><small>${escapeHtml(item.detail)}</small></button>`).join('')}
+          ${tasks.slice(1, 3).map((item, index) => `<button class="route-link" data-route="${item.route}"><span>0${index + 2}</span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.detail)}</small></button>`).join('') || '<p class="muted">Add subjects or deadlines to receive more study suggestions.</p>'}
         </div>
       </section>
       <aside class="home-ai-note">
         <div class="home-ai-note-icon">${assistantAiIcon()}</div>
         <p>Learnova's suggestion</p>
-        <h3>Build confidence in ${escapeHtml(weak.topic)} before you move on.</h3>
-        <button class="home-assistant-action" data-home-assistant="${escapeHtml(`Explain ${priorityTopic} using a simple everyday example, then give me one quick question to check my understanding.`)}">Ask for an explanation</button>
+        <h3>${priority ? `Build confidence in ${escapeHtml(priority.topic)} with one focused step.` : 'Add context and Learnova will recommend a grounded next step.'}</h3>
+        <button class="home-assistant-action" data-home-assistant="${escapeHtml(priority ? `Explain ${priorityTopic} using a simple everyday example, then give me one quick question to check my understanding.` : 'Help me choose what to study. Ask for my subject or an uploaded study set before recommending a topic.')}">Ask for an explanation</button>
       </aside>
     </section>
 
     <section class="home-materials-layout">
       <section class="home-materials">
-        <div class="home-section-heading"><div><p>Continue from your materials</p><h2>Study sets in motion</h2></div><button class="text-action route-link" data-route="library">View all</button></div>
+        <div class="home-section-heading"><div><p>Recent uploads</p><h2>Your study sets</h2></div><button class="text-action route-link" data-route="library">View all</button></div>
         <div class="home-materials-row">
-          ${sets.slice(0, 3).map((set, index) => `
+          ${sets.length ? sets.slice(0, 3).map((set, index) => `
             <button class="home-material-preview" data-open-study-set="${escapeHtml(set.id)}">
               <span class="home-document-thumb thumb-${index + 1}"><i></i><i></i><i></i></span>
               <span><small>${escapeHtml(set.type)} - ${escapeHtml(set.estimate)}</small><strong>${escapeHtml(set.title)}</strong><em>${escapeHtml(set.topics[0])}</em></span>
             </button>
-          `).join('')}
+          `).join('') : '<div class="empty-state"><p>Upload notes, a worksheet, or a PDF to create your first study set.</p><button class="primary route-link" data-route="capture">Upload study material</button></div>'}
         </div>
       </section>
       <aside class="home-progress-field">
-        <div><p>Progress</p><strong>${masteryAverage()}%</strong><span>mastery</span></div>
-        <div class="home-progress-graphic"><i style="--dot:42%"></i><i style="--dot:68%"></i><i style="--dot:82%"></i><i style="--dot:74%"></i><i style="--dot:71%"></i></div>
+        <div><p>Progress</p>${measuredAverage === null ? '<strong>Not started</strong><span>Complete a quiz or study session to begin tracking progress.</span>' : `<strong>${measuredAverage}%</strong><span>from recorded quiz activity</span>`}</div>
+        ${state.mastery.length ? `<div class="home-progress-graphic">${state.mastery.slice(0, 5).map((item) => `<i style="--dot:${item.score}%" title="${escapeHtml(`${item.subject}: ${item.topic} ${item.score}%`)}"></i>`).join('')}</div>` : ''}
         <button class="text-action route-link" data-route="mastery">See your progress</button>
       </aside>
     </section>
@@ -1339,7 +1369,7 @@ function renderStudySet() {
         <h1>${escapeHtml(set.title)}</h1>
         <p>${escapeHtml(set.subject)} - ${escapeHtml(set.source)}</p>
       </div>
-      <div class="study-set-detail-meta"><span>${escapeHtml(set.estimate)} study time</span><span>Last studied ${escapeHtml(set.lastStudied)}</span></div>
+      <div class="study-set-detail-meta"><span>${escapeHtml(set.estimate)} study time</span><span>${/unavailable/i.test(set.processingStatus || '') ? escapeHtml(set.processingStatus) : set.lastStudiedAt ? `Last studied ${escapeHtml(set.lastStudied)}` : 'Not started'}</span></div>
     </section>
     <section class="study-set-detail-workspace">
       <div>
@@ -1353,80 +1383,70 @@ function renderStudySet() {
 }
 
 function renderCapture() {
+  const profileSubjects = toList(state.studentProfile.subjects);
   const saved = state.savedPages.length
     ? state.savedPages.map(savedPageRow).join('')
     : '<p class="muted">Save a study page from the popup and it will appear here.</p>';
 
   stage.innerHTML = `
+    <section class="page-intro">
+      <div><button class="back-link route-link" data-route="library">Back to Study Sets</button><p class="page-kicker">Add material</p><h1>Create a persistent study set.</h1><p>Your file stays available after route changes, refreshes, and extension restarts.</p></div>
+      <button class="secondary route-link" data-route="library">View Study Sets</button>
+    </section>
     <section class="grid grid-2">
       ${panel(`
         <p class="eyebrow">Material capture</p>
-        <h2>Upload demo</h2>
-        <p class="muted">This creates a mock parsed result. No files are read or sent anywhere.</p>
+        <h2>Upload study material</h2>
+        <p class="muted">Files are stored locally. They are sent to Learnova AI only when you choose an AI action.</p>
         <div class="form-grid">
-          <label class="wide">Pretend filename<input id="fakeFile" placeholder="Chemistry moles notes.pdf"></label>
-          <label>Subject<select id="uploadSubject">${Object.keys(subjects).map((subject) => `<option>${subject}</option>`).join('')}</select></label>
-          <label>Material type<select id="uploadType"><option>PDF</option><option>Slides</option><option>Notes</option><option>Study guide</option></select></label>
+          <label>Subject (optional)<select id="captureSubject"><option value="">Detect from material</option>${profileSubjects.map((subject) => `<option value="${escapeHtml(subject)}">${escapeHtml(subject)}</option>`).join('')}</select></label>
+          <label>Topic (optional)<input id="captureTopic" placeholder="e.g. Moles"></label>
         </div>
-        <div class="button-row" style="margin-top:16px">
-          <button id="mockUpload" class="primary">Generate study layer</button>
-          <button class="secondary route-link" data-route="assistant">Ask about notes</button>
+        <div id="captureDropZone" class="upload-drop-zone" tabindex="0" role="button" aria-label="Choose or drop study files">
+          <input id="captureFileInput" type="file" multiple accept=".pdf,.docx,.txt,.ppt,.pptx,image/*">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+          <h3>Choose or drop files</h3>
+          <p class="muted">PDF, DOCX, TXT, PPT, PPTX, PNG, JPG, WEBP, and GIF. Maximum 10 MB each.</p>
+          <button id="chooseCaptureFiles" class="primary" type="button">Upload study material</button>
         </div>
       `)}
       ${panel(`
-        <p class="eyebrow">Generated layer</p>
-        <div id="uploadResult" class="prompt-card">
-          <h2>Ready to transform material.</h2>
-          <p class="muted">The wow moment here is instant structure: summary, key terms, quiz ideas, and topic tagging.</p>
+        <p class="eyebrow">Upload status</p>
+        <div id="captureUploadStatus" class="prompt-card" aria-live="polite">
+          <h2>Ready when you are.</h2>
+          <p class="muted">Your study set will appear here as it uploads and processes.</p>
         </div>
       `)}
     </section>
     <section class="grid grid-2">
-      ${panel(`<div class="section-title"><div><p class="eyebrow">Library</p><h2>Saved materials</h2></div><span class="pill">${state.materials.length}</span></div>${state.materials.map(materialRow).join('')}`)}
+      ${panel(`<div class="section-title"><div><p class="eyebrow">Library</p><h2>Uploaded study sets</h2></div><span class="pill">${state.studySets.length}</span></div><div id="captureUploadedFileList">${UploadedFileList()}</div>`)}
       ${panel(`<div class="section-title"><div><p class="eyebrow">Chrome</p><h2>Saved pages</h2></div><span class="pill">${state.savedPages.length}</span></div>${saved}`)}
     </section>
   `;
 
-  document.getElementById('mockUpload').addEventListener('click', mockUpload);
-}
-
-function materialRow(item) {
-  return `<div class="list-row"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.subject)} - ${escapeHtml(item.topic || item.type)}</small></div><span class="pill">${escapeHtml(item.type)}</span></div>`;
+  bindCaptureUpload();
 }
 
 function savedPageRow(item) {
   return `<div class="list-row"><div><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.subject)} - ${escapeHtml(item.topic)} - ${escapeHtml(item.action || 'Saved from Chrome')}</small></div><span class="pill">Chrome</span></div>`;
 }
 
-async function mockUpload() {
-  const subject = document.getElementById('uploadSubject').value;
-  const type = document.getElementById('uploadType').value;
-  const title = document.getElementById('fakeFile').value || `${subject} study material`;
-  const topic = subjects[subject][0];
-  const material = { title, subject, type, topic };
-  await storage.set({ ...state, materials: [material, ...state.materials] });
-
-  document.getElementById('uploadResult').innerHTML = `
-    <p class="eyebrow">Generated from your study material</p>
-    <h2>${escapeHtml(subject)}: ${escapeHtml(topic)}</h2>
-    <div class="grid">
-      <div class="list-row"><div><strong>Summary</strong><small>Core definitions, formulas, and exam mistakes extracted into a clean revision view.</small></div></div>
-      <div class="list-row"><div><strong>Key terms</strong><small>${escapeHtml(topic)}, formula, method, worked example, exam command word.</small></div></div>
-      <div class="list-row"><div><strong>Quiz seeds</strong><small>Define ${escapeHtml(topic)}. Apply it to a problem. Explain one common mistake.</small></div></div>
-    </div>
-  `;
-  showToast('Study layer generated from mock material.');
-}
-
 function renderAssistant() {
   const profile = state.studentProfile;
   const firstName = (profile.name || 'Student').split(' ')[0];
   const personalizationActive = Boolean(state.auth.profileComplete && profile.personalizationEnabled !== false);
-  const profileWeak = toList(profile.weakTopics)[0] || `${weakestTopic().subject}: ${weakestTopic().topic}`;
+  const measuredWeak = weakestTopic();
+  const profileWeak = toList(profile.weakTopics)[0]
+    || (measuredWeak ? `${measuredWeak.subject}: ${measuredWeak.topic}` : 'a topic I choose');
+  const hasWeakContext = Boolean(toList(profile.weakTopics).length || measuredWeak);
   const prompts = personalizationActive
     ? [
-        { label: 'Explain my weakest topic', prompt: `Explain my weakest topic, ${profileWeak}, in a simple ${profile.curriculum || 'high school'} style. Use my profile, goals, and preferred study style.` },
-        { label: 'Quiz me on weak topics', prompt: `Quiz me on my weak topics: ${listText(profile.weakTopics)}. Make it targeted to my ${profile.curriculum || 'curriculum'} and target grades of ${profile.targetGrades || 'my goals'}.` },
+        hasWeakContext
+          ? { label: 'Explain my weakest topic', prompt: `Explain my weakest topic, ${profileWeak}, in a simple ${profile.curriculum || 'course-appropriate'} style. Use my profile, goals, and preferred study style.` }
+          : { label: 'Explain a subject', prompt: `Ask me which of my saved subjects (${listText(profile.subjects)}) I want help with, then explain the topic simply.` },
+        hasWeakContext
+          ? { label: 'Quiz me on weak topics', prompt: `Quiz me on my weak topics: ${listText(profile.weakTopics) || profileWeak}. Make it targeted to my ${profile.curriculum || 'curriculum'} and target grades of ${profile.targetGrades || 'my goals'}.` }
+          : { label: 'Quiz me', prompt: `Ask which of my saved subjects (${listText(profile.subjects)}) and which topic I want before creating a quiz.` },
         { label: 'Make flashcards from my notes', prompt: 'Make flashcards from my uploaded notes and saved study materials. Prioritize my weak topics and keep them concise.' },
         { label: "Create today's revision plan", prompt: `Create today's revision plan using my upcoming tasks (${listText(profile.upcomingDeadlines)}) and weak topics (${listText(profile.weakTopics)}). Fit it into ${profile.dailyStudyTime || 'my available study time'}.` },
         { label: 'Summarize uploaded materials', prompt: 'Summarize my uploaded materials and turn the key ideas into a short study plan, quiz topics, and flashcard ideas.' },
@@ -1439,13 +1459,12 @@ function renderAssistant() {
         { label: 'Summarize uploaded materials', prompt: 'Summarize my uploaded materials and identify the most important study points.' },
       ];
   const provider = globalThis.LearnovaAssistant?.providers?.[state.aiProvider] || globalThis.LearnovaAssistant?.providers?.mock;
-  const weak = weakestTopic();
   const contextSignals = [
-    ['Using your notes', `${state.materials.length + state.savedPages.length} saved sources available`],
+    ['Using your notes', `${state.studySets.length + state.savedPages.length} saved sources available`],
     ...(personalizationActive
       ? [
-          ['Student profile', `${state.studentProfile.yearGroup || `Grade ${state.studentProfile.grade}`}, ${state.studentProfile.curriculum}`],
-          ['Weak topics', toList(state.studentProfile.weakTopics).slice(0, 2).join(', ') || `${weak.subject}: ${weak.topic} (${weak.score}%)`],
+          ['Student profile', [state.studentProfile.yearGroup || state.studentProfile.grade, state.studentProfile.curriculum].filter(Boolean).join(', ') || 'Profile loaded'],
+          ['Weak topics', toList(state.studentProfile.weakTopics).slice(0, 2).join(', ') || (measuredWeak ? `${measuredWeak.subject}: ${measuredWeak.topic} (${measuredWeak.score}% from activity)` : 'None recorded yet')],
         ]
       : []),
     ['Current webpage', state.browserContext.title || 'No page captured yet'],
@@ -1595,10 +1614,11 @@ function assistantAiIcon() {
 }
 
 function attachmentTypeLabel(file) {
-  const type = String(file.type || '').toLowerCase();
+  const type = String(file.fileType || file.type || '').toLowerCase();
   if (type.includes('pdf')) return 'PDF';
   if (type.includes('word') || type.includes('docx')) return 'DOCX';
   if (type.includes('text') || type.includes('txt')) return 'TXT';
+  if (type.includes('presentation') || type.includes('powerpoint') || type.includes('ppt')) return 'PPT';
   if (type.includes('image')) return 'IMAGE';
   return type.split('/').pop()?.toUpperCase() || 'FILE';
 }
@@ -1774,7 +1794,7 @@ function UploadedFileList() {
             <div class="uploaded-file-row" data-id="${file.id}">
               <div>
                 <strong>${escapeHtml(file.name)}</strong>
-                <small>${escapeHtml(file.type || 'Unknown file')} - ${escapeHtml(file.status)}</small>
+                <small>${escapeHtml(attachmentTypeLabel(file))} - ${escapeHtml(file.processingStatus || file.status)} - ${escapeHtml(file.activityStatus || 'Not started')}</small>
                 ${
                   file.detectedSubject
                     ? `<small>${escapeHtml(file.detectedSubject)}${file.detectedTopics?.length ? ` - ${escapeHtml(file.detectedTopics.join(', '))}` : ''}</small>`
@@ -1803,10 +1823,10 @@ function UploadContextModal() {
       </div>
       <div class="grid grid-2">
         <section class="upload-drop-zone">
-          <input id="studyFileInput" type="file" multiple accept=".pdf,.docx,.txt,image/*">
+          <input id="studyFileInput" type="file" multiple accept=".pdf,.docx,.txt,.ppt,.pptx,image/*">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
           <h3>Upload files</h3>
-          <p class="muted">PDF, DOCX, TXT, PNG, JPG, and other image files.</p>
+          <p class="muted">PDF, DOCX, TXT, PPT, PPTX, PNG, JPG, and other image files.</p>
           <button id="chooseStudyFiles" class="primary">Choose files</button>
         </section>
         <section>
@@ -1838,16 +1858,67 @@ function bindUploadContextModal() {
   const input = document.getElementById('studyFileInput');
   document.getElementById('chooseStudyFiles').addEventListener('click', () => input.click());
   input.addEventListener('change', handleStudyFiles);
+  bindFileDropZone(document.querySelector('.upload-context-modal .upload-drop-zone'), (files) => processStudyFiles(files));
   bindUploadedFileList();
+}
+
+function bindFileDropZone(zone, onFiles) {
+  if (!zone) return;
+  ['dragenter', 'dragover'].forEach((eventName) => zone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    zone.classList.add('drag-active');
+  }));
+  ['dragleave', 'drop'].forEach((eventName) => zone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    zone.classList.remove('drag-active');
+  }));
+  zone.addEventListener('drop', (event) => onFiles([...event.dataTransfer.files]));
+}
+
+function bindCaptureUpload() {
+  const input = document.getElementById('captureFileInput');
+  const zone = document.getElementById('captureDropZone');
+  document.getElementById('chooseCaptureFiles')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    input.click();
+  });
+  zone?.addEventListener('click', (event) => {
+    if (!event.target.closest('button')) input.click();
+  });
+  zone?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      input.click();
+    }
+  });
+  input?.addEventListener('change', handleStudyFiles);
+  bindFileDropZone(zone, (files) => processStudyFiles(files, captureUploadOverrides()));
+  bindUploadedFileList();
+}
+
+function captureUploadOverrides() {
+  return {
+    subject: document.getElementById('captureSubject')?.value || '',
+    topic: document.getElementById('captureTopic')?.value.trim() || '',
+  };
+}
+
+async function persistStudySets(studySets) {
+  const saved = await StudySetService.saveStudySets(studySets);
+  await storage.set({ ...state, studySets: saved, assistantUploads: saved });
+  return saved;
 }
 
 function bindUploadedFileList() {
   document.querySelectorAll('.remove-upload').forEach((button) => {
     button.addEventListener('click', async () => {
       await globalThis.LearnovaStudyMaterials?.removeFile(button.dataset.id);
-      const uploads = state.assistantUploads.filter((file) => file.id !== button.dataset.id);
-      await storage.set({ ...state, assistantUploads: uploads });
-      document.getElementById('uploadedFileList').innerHTML = UploadedFileList();
+      const uploads = await StudySetService.removeStudySet(button.dataset.id);
+      await storage.set({ ...state, studySets: uploads, assistantUploads: uploads });
+      const modalList = document.getElementById('uploadedFileList');
+      if (modalList) modalList.innerHTML = UploadedFileList();
+      const captureList = document.getElementById('captureUploadedFileList');
+      if (captureList) captureList.innerHTML = UploadedFileList();
       bindUploadedFileList();
       refreshStudyContextIndicators();
       showToast('File removed from study context.');
@@ -1856,56 +1927,129 @@ function bindUploadedFileList() {
 }
 
 async function handleStudyFiles(event) {
-  const files = [...event.target.files];
+  const files = [...(event.target.files || [])];
+  await processStudyFiles(files, event.target.id === 'captureFileInput' ? captureUploadOverrides() : {});
+  event.target.value = '';
+}
+
+function updateUploadStatus(title, message) {
+  const status = document.getElementById('captureUploadStatus');
+  if (!status) return;
+  status.innerHTML = `<h2>${escapeHtml(title)}</h2><p class="muted">${escapeHtml(message)}</p>`;
+}
+
+function refreshUploadedFileLists() {
+  const modalList = document.getElementById('uploadedFileList');
+  if (modalList) modalList.innerHTML = UploadedFileList();
+  const captureList = document.getElementById('captureUploadedFileList');
+  if (captureList) captureList.innerHTML = UploadedFileList();
+  bindUploadedFileList();
+  refreshStudyContextIndicators();
+}
+
+async function processStudyFiles(files, overrides = {}) {
   if (!files.length) return;
   const maxFileSize = 10 * 1024 * 1024;
-  const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+  const allowed = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain',
+  ];
   const oversized = files.filter((file) => file.size > maxFileSize);
   const acceptedFiles = files.filter(
     (file) => file.size <= maxFileSize && (
       allowed.includes(file.type) ||
       file.type.startsWith('image/') ||
-      /\.(pdf|docx|txt|png|jpe?g|webp|gif)$/i.test(file.name)
+      /\.(pdf|docx|txt|pptx?|png|jpe?g|webp|gif)$/i.test(file.name)
     )
   );
-  const uploads = [];
+  let completed = 0;
+  let unavailable = 0;
+
+  if (!acceptedFiles.length) {
+    showToast(oversized.length ? 'Files must be 10 MB or smaller.' : 'Supported files: PDF, DOCX, TXT, PPT, PPTX, and images.');
+    updateUploadStatus('Nothing uploaded.', oversized.length ? 'Choose files that are 10 MB or smaller.' : 'Choose a supported study file.');
+    return;
+  }
 
   for (const file of acceptedFiles) {
     const id = uid();
+    const initialDetection = globalThis.LearnovaStudyMaterials.detectStudyContext(file.name, '');
+    const initialRecord = StudySetService.normalizeStudySet({
+      studySetId: id,
+      originalFilename: file.name,
+      displayTitle: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '),
+      fileType: file.type || file.name.split('.').pop().toUpperCase(),
+      fileSize: file.size,
+      uploadedAt: new Date().toISOString(),
+      subject: overrides.subject || initialDetection.detectedSubject,
+      topic: overrides.topic || initialDetection.detectedTopics[0] || '',
+      detectedTopics: overrides.topic ? [overrides.topic] : initialDetection.detectedTopics,
+      processingStatus: 'Uploading...',
+      extractionStatus: 'pending',
+      sourceType: 'upload',
+      sourceAvailable: false,
+      activityStatus: 'Not started',
+    });
+
     try {
+      updateUploadStatus('Uploading...', file.name);
+      await persistStudySets([initialRecord, ...state.studySets]);
+      refreshUploadedFileLists();
+
+      await StudySetService.updateStudySet(id, { processingStatus: 'Processing material...' });
+      state = normalizeState({ ...state, studySets: await StudySetService.getStudySets() });
+      refreshUploadedFileLists();
       const extractedText = await globalThis.LearnovaStudyMaterials.readTextPreview(file);
       const detected = globalThis.LearnovaStudyMaterials.detectStudyContext(file.name, extractedText);
       await globalThis.LearnovaStudyMaterials.saveFile(id, file);
-      uploads.push({
-        id,
-        name: file.name,
-        type: file.type || file.name.split('.').pop().toUpperCase(),
-        size: file.size,
-        status: 'Ready for an AI quiz',
-        addedAt: new Date().toISOString(),
+      const updated = await StudySetService.updateStudySet(id, {
         extractedText,
-        detectedSubject: detected.detectedSubject,
-        detectedTopics: detected.detectedTopics,
+        subject: overrides.subject || detected.detectedSubject || initialRecord.subject,
+        topic: overrides.topic || detected.detectedTopics[0] || initialRecord.topic,
+        detectedTopics: overrides.topic ? [overrides.topic] : (detected.detectedTopics.length ? detected.detectedTopics : initialRecord.detectedTopics),
+        processingStatus: 'Study set ready',
+        extractionStatus: extractedText ? 'extracted' : 'available_on_ai_request',
         sourceAvailable: true,
       });
-    } catch {
-      showToast(`${file.name} could not be saved. Please try attaching it again.`);
+      const next = (await StudySetService.getStudySets()).map((item) => item.studySetId === id ? updated : item);
+      await storage.set({ ...state, studySets: next, assistantUploads: next });
+      completed += 1;
+    } catch (error) {
+      const exists = state.studySets.some((item) => item.studySetId === id)
+        || (await StudySetService.getStudySets()).some((item) => item.studySetId === id);
+      if (!exists) {
+        showToast('We could not save this study set. Please retry.');
+        updateUploadStatus('Upload failed.', 'We could not save this study set. Please retry.');
+        continue;
+      }
+      const updated = await StudySetService.updateStudySet(id, {
+        processingStatus: 'Uploaded - processing unavailable',
+        extractionStatus: 'unavailable',
+        sourceAvailable: false,
+        errorMessage: error?.message || 'Local processing was unavailable.',
+      });
+      const next = (await StudySetService.getStudySets()).map((item) => item.studySetId === id ? updated : item);
+      await storage.set({ ...state, studySets: next, assistantUploads: next });
+      unavailable += 1;
     }
+    refreshUploadedFileLists();
   }
 
-  if (!uploads.length) {
-    event.target.value = '';
-    showToast(oversized.length ? 'Files must be 10 MB or smaller.' : 'Supported files: PDF, DOCX, TXT, and images.');
-    return;
-  }
-  await storage.set({ ...state, assistantUploads: [...uploads, ...state.assistantUploads] });
-  const uploadedFileList = document.getElementById('uploadedFileList');
-  if (uploadedFileList) uploadedFileList.innerHTML = UploadedFileList();
-  bindUploadedFileList();
-  refreshStudyContextIndicators();
   showUploadCompletion();
-  event.target.value = '';
-  showToast(`${uploads.length} file${uploads.length === 1 ? '' : 's'} attached to Learnova.`);
+  if (completed) {
+    updateUploadStatus('Study set ready', `${completed} file${completed === 1 ? '' : 's'} saved locally and ready to study.`);
+    showToast(`${completed} study set${completed === 1 ? '' : 's'} saved.`);
+  }
+  if (unavailable) {
+    updateUploadStatus('Saved with limited processing', 'This file could not be processed, but it has been saved to your Study Sets.');
+    showToast('This file could not be processed, but it has been saved to your Study Sets.');
+  }
+  if (oversized.length || acceptedFiles.length < files.length) {
+    showToast('Some files were skipped because their type or size is not supported.');
+  }
 }
 
 function refreshStudyContextIndicators() {
@@ -1966,7 +2110,6 @@ async function sendChat(prompt) {
       clean,
       injectProfileIntoAssistantContext({
         ...state,
-        subjects,
         conversationHistory,
         profileDebug,
         isDevelopment,
@@ -1989,14 +2132,10 @@ function assistantResponseMarkup(response) {
 }
 
 function renderQuiz() {
-  const uploadedMaterials = state.assistantUploads;
+  const uploadedMaterials = state.studySets;
   const subjectSuggestions = [...new Set([
     ...toList(state.studentProfile.subjects),
-    ...Object.keys(subjects),
-    ...uploadedMaterials.map((item) => item.detectedSubject).filter(Boolean),
-    'Biology',
-    'History',
-    'English Literature',
+    ...uploadedMaterials.map((item) => item.subject).filter(Boolean),
   ])];
   stage.innerHTML = `
     <section class="grid grid-2 quiz-setup-grid">
@@ -2008,7 +2147,7 @@ function renderQuiz() {
           <label class="quiz-material-field">Study material
             <select id="quizMaterial">
               <option value="">No file selected</option>
-              ${uploadedMaterials.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('')}
+              ${uploadedMaterials.map((item) => `<option value="${escapeHtml(item.studySetId)}">${escapeHtml(item.displayTitle)}</option>`).join('')}
             </select>
           </label>
           <label>Subject
@@ -2045,17 +2184,17 @@ function renderQuiz() {
   const topicInput = document.getElementById('quizTopic');
   const sourceHint = document.getElementById('quizSourceHint');
   const syncMaterialContext = (force = false) => {
-    const material = uploadedMaterials.find((item) => item.id === materialSelect.value);
+    const material = uploadedMaterials.find((item) => item.studySetId === materialSelect.value);
     if (!material) {
       sourceHint.textContent = 'No file selected. Enter a subject or topic to continue.';
       return;
     }
-    if (force || !subjectInput.value.trim()) subjectInput.value = material.detectedSubject || '';
+    if (force || !subjectInput.value.trim()) subjectInput.value = material.subject || '';
     if (force || !topicInput.value.trim()) topicInput.value = material.detectedTopics?.[0] || '';
-    const context = [material.detectedSubject, ...(material.detectedTopics || [])].filter(Boolean).join(' - ');
+    const context = [material.subject, ...(material.detectedTopics || [])].filter(Boolean).join(' - ');
     sourceHint.textContent = context
-      ? `Using ${material.name}: ${context}`
-      : `Using ${material.name}. Learnova will inspect the file to identify its subject and topics.`;
+      ? `Using ${material.displayTitle}: ${context}`
+      : `Using ${material.displayTitle}. Learnova will inspect the file to identify its subject and topics.`;
   };
   materialSelect.addEventListener('change', () => syncMaterialContext(true));
 
@@ -2066,7 +2205,7 @@ function renderQuiz() {
     syncMaterialContext(false);
     pendingQuiz = null;
   } else if (uploadedMaterials[0]) {
-    materialSelect.value = uploadedMaterials[0].id;
+    materialSelect.value = uploadedMaterials[0].studySetId;
     syncMaterialContext(true);
   } else {
     syncMaterialContext(false);
@@ -2155,7 +2294,7 @@ async function generateQuiz() {
   const subject = document.getElementById('quizSubject').value.trim();
   const topic = document.getElementById('quizTopic').value.trim();
   const materialId = document.getElementById('quizMaterial').value;
-  const material = state.assistantUploads.find((item) => item.id === materialId) || null;
+  const material = state.studySets.find((item) => item.studySetId === materialId) || null;
 
   if (!material && !subject && !topic) {
     quizArea.innerHTML = '<div class="quiz-empty-state quiz-clarification"><strong>What subject would you like to be quizzed on?</strong><p>Enter a subject or topic above, or upload study material first.</p></div>';
@@ -2175,10 +2314,17 @@ async function generateQuiz() {
       : {};
     const formData = new FormData();
     const attachedIds = material
-      ? await globalThis.LearnovaStudyMaterials.appendFiles(formData, [material.id])
+      ? await globalThis.LearnovaStudyMaterials.appendFiles(formData, [material.studySetId])
       : [];
     if (material?.sourceAvailable && !attachedIds.length && !material.extractedText) {
-      throw new Error('This file is no longer available locally. Remove it and attach it again before generating a quiz.');
+      quizArea.innerHTML = '<div class="quiz-empty-state quiz-clarification"><strong>This file content is unavailable.</strong><p>Reattach the file, or enter the subject and topic before generating a quiz. Learnova will not invent questions from a filename alone.</p></div>';
+      document.getElementById('quizTopic').focus();
+      return;
+    }
+    if (material && !material.sourceAvailable && !material.extractedText) {
+      quizArea.innerHTML = '<div class="quiz-empty-state quiz-clarification"><strong>This saved file needs to be reattached.</strong><p>Its content could not be processed. Reattach it, or choose "No file selected" and enter the subject and topic yourself.</p></div>';
+      document.getElementById('quizSubject').focus();
+      return;
     }
     formData.append('request', JSON.stringify({
       subject,
@@ -2189,10 +2335,11 @@ async function generateQuiz() {
       weakTopics: profile.weakTopics || [],
       studentProfile: profile,
       material: material ? {
-        id: material.id,
-        title: material.name,
-        type: material.type,
-        detectedSubject: material.detectedSubject || '',
+        id: material.studySetId,
+        studySetId: material.studySetId,
+        title: material.displayTitle,
+        type: material.fileType,
+        detectedSubject: material.subject || '',
         detectedTopics: material.detectedTopics || [],
         extractedText: material.extractedText || '',
       } : {},
@@ -2214,7 +2361,10 @@ async function generateQuiz() {
       document.getElementById('quizSubject').focus();
       return;
     }
-    renderGeneratedQuiz(payload);
+    renderGeneratedQuiz({
+      ...payload,
+      studySetId: material?.studySetId || '',
+    });
   } catch (error) {
     const offlineMessage = /fetch|network|abort/i.test(String(error?.message || ''))
       ? 'Learnova AI may be waking up. Please wait a moment and try again.'
@@ -2289,19 +2439,6 @@ function topicPerformance(quiz, results) {
   return performance;
 }
 
-function updatedMasteryFromQuiz(quiz, performance) {
-  const next = state.mastery.map((item) => ({ ...item }));
-  performance.forEach((result, topic) => {
-    const topicScore = Math.round((result.correct / result.total) * 100);
-    const existing = next.find(
-      (item) => item.subject.toLowerCase() === String(quiz.subject || '').toLowerCase() && item.topic.toLowerCase() === topic.toLowerCase()
-    );
-    if (existing) existing.score = Math.round(existing.score * 0.7 + topicScore * 0.3);
-    else next.push({ subject: quiz.subject || 'Study material', topic, score: topicScore });
-  });
-  return next;
-}
-
 async function submitQuiz(quiz = activeQuiz) {
   if (!quiz?.questions?.length) return;
   const results = quiz.questions.map((question) => {
@@ -2330,13 +2467,54 @@ async function submitQuiz(quiz = activeQuiz) {
     total: quiz.questions.length,
     weakQuestions,
     strongTopics,
+    studySetId: quiz.studySetId || '',
     completedAt: new Date().toISOString(),
   };
+  const answerEvents = quiz.questions.map((question, index) => ({
+    type: results[index].correct
+      ? ActivityService.EVENT_TYPES.QUIZ_ANSWER_CORRECT
+      : ActivityService.EVENT_TYPES.QUIZ_ANSWER_INCORRECT,
+    timestamp: quizRecord.completedAt,
+    subject: quizRecord.subject,
+    topic: question.topic || quiz.topics?.[0] || quizRecord.topic,
+    studySetId: quizRecord.studySetId,
+    result: results[index].response,
+    metadata: {
+      quizId: quizRecord.id,
+      questionId: question.id,
+      correctAnswer: question.answer,
+    },
+  }));
+  const activityEvents = await ActivityService.recordEvents([
+    ...answerEvents,
+    {
+      type: ActivityService.EVENT_TYPES.QUIZ_COMPLETED,
+      timestamp: quizRecord.completedAt,
+      subject: quizRecord.subject,
+      topic: quiz.topics?.[0] || quizRecord.topic,
+      studySetId: quizRecord.studySetId,
+      score,
+      result: `${correct}/${quiz.questions.length}`,
+      metadata: { quizId: quizRecord.id, title: quizRecord.title, correct, total: quiz.questions.length },
+    },
+  ]);
   const nextState = {
     ...state,
-    mastery: updatedMasteryFromQuiz(quiz, performance),
+    activityEvents,
     previousQuizzes: [quizRecord, ...state.previousQuizzes].slice(0, 30),
   };
+  if (quizRecord.studySetId) {
+    try {
+      const updatedSet = await StudySetService.updateStudySet(quizRecord.studySetId, {
+        lastStudiedAt: quizRecord.completedAt,
+        activityStatus: 'Quiz completed',
+      });
+      nextState.studySets = state.studySets.map((item) => item.studySetId === updatedSet.studySetId ? updatedSet : item);
+      nextState.assistantUploads = nextState.studySets;
+    } catch {
+      // A completed quiz remains recorded even if its study-set timestamp cannot be updated.
+    }
+  }
   if (state.auth.profileComplete) {
     const existingQuizHistory = Array.isArray(state.studentProfile.quizHistory)
       ? state.studentProfile.quizHistory
@@ -2372,11 +2550,25 @@ async function submitQuiz(quiz = activeQuiz) {
   `;
   document.getElementById('newQuiz')?.addEventListener('click', renderQuiz);
   renderInsights();
-  showToast('Quiz complete. Mastery signal updated.');
+  showToast('Quiz complete. Progress updated from your answers.');
 }
 
 function renderFlashcards() {
-  const [subject, topic, front, back] = flashcards[activeCard];
+  const flashcards = state.flashcardMemory;
+  if (!flashcards.length) {
+    stage.innerHTML = `
+      ${panel(`
+        <p class="eyebrow">Flashcards</p>
+        <h1 style="font-size:56px">Build your first active-recall deck.</h1>
+        <p class="muted" style="max-width:680px">Upload study material or ask Learnova to create flashcards from a topic you choose.</p>
+        <div class="button-row"><button class="primary route-link" data-route="capture">Upload study material</button><button class="secondary route-link" data-route="assistant">Ask Learnova</button></div>
+      `, 'hero-panel')}
+    `;
+    return;
+  }
+  activeCard = Math.min(activeCard, flashcards.length - 1);
+  const card = flashcards[activeCard];
+  const { subject = 'Study material', topic = 'Review', front = '', back = '' } = card;
   stage.innerHTML = `
     <section class="grid grid-2">
       ${panel(`
@@ -2409,14 +2601,25 @@ function renderFlashcards() {
         <p class="eyebrow">Deck</p>
         <h2>Active recall queue</h2>
         <div class="grid">
-          ${flashcards.map((item, index) => `<button class="deck-button" data-index="${index}"><strong>${item[1]}</strong><small>${item[0]}</small></button>`).join('')}
+          ${flashcards.map((item, index) => `<button class="deck-button" data-index="${index}"><strong>${escapeHtml(item.topic || 'Review')}</strong><small>${escapeHtml(item.subject || 'Study material')}</small></button>`).join('')}
         </div>
       `)}
     </section>
   `;
 
-  document.getElementById('flashcard').addEventListener('click', () => {
+  document.getElementById('flashcard').addEventListener('click', async () => {
+    const revealingAnswer = !cardFlipped;
     cardFlipped = !cardFlipped;
+    if (revealingAnswer) {
+      const activityEvents = await ActivityService.recordEvents([{
+        type: ActivityService.EVENT_TYPES.FLASHCARD_REVIEWED,
+        subject,
+        topic,
+        studySetId: card.studySetId || '',
+        metadata: { cardId: card.id || `${subject}-${topic}-${activeCard}` },
+      }]);
+      await storage.set({ ...state, activityEvents });
+    }
     renderFlashcards();
   });
   document.getElementById('prevCard').addEventListener('click', () => {
@@ -2439,37 +2642,42 @@ function renderFlashcards() {
 }
 
 function renderMastery() {
+  const summary = ActivityService.summarize(state.activityEvents);
   stage.innerHTML = `
     ${panel(`
       <p class="eyebrow">Weak Topics / Mastery Tracker</p>
       <h1 style="font-size:56px">The map of what needs attention.</h1>
-      <p class="muted" style="max-width:680px">Progress bars are mock signals. They create a clear study priority without real grades or accounts.</p>
+      <p class="muted" style="max-width:680px">Progress is calculated only from completed quizzes and other confirmed study activity.</p>
     `, 'hero-panel')}
-    <section class="grid grid-2">${state.mastery.map((item) => panel(progressRow(item))).join('')}</section>
+    ${state.mastery.length
+      ? `<section class="grid grid-2">${state.mastery.map((item) => panel(`${progressRow(item)}<small class="muted">Based on ${escapeHtml(item.source)}.</small>`)).join('')}</section>`
+      : panel('<div class="empty-state"><h2>No progress recorded yet.</h2><p>Complete your first quiz to begin tracking progress. Learnova will detect weak topics after you answer a few questions.</p><button class="primary route-link" data-route="quiz">Take a quiz</button></div>')}
+    ${summary.completedQuizCount ? `<p class="muted">${summary.completedQuizCount} completed quiz${summary.completedQuizCount === 1 ? '' : 'zes'} recorded locally.</p>` : ''}
   `;
 }
 
 function renderPlanner() {
+  const tasks = suggestedStudyTasks();
   stage.innerHTML = `
     ${panel(`
       <p class="eyebrow">Revision Planner</p>
       <h1 style="font-size:56px">A week that knows the weak spots.</h1>
-      <p class="muted" style="max-width:680px">Tasks are suggested from mock mastery data. Premium planning cards show the upgrade story without real billing.</p>
+      <p class="muted" style="max-width:680px">Suggestions use your saved subjects, self-identified weak topics, and real deadlines. Completing a suggestion does not count until you confirm an activity.</p>
     `, 'hero-panel')}
-    <section class="grid grid-3">
-      ${planner
+    ${tasks.length ? `<section class="grid grid-3">
+      ${tasks
         .map(
-          (item) => `
+          (item, index) => `
             ${mini(`
-              <div class="row" style="justify-content:space-between"><span class="pill">${item.day}</span>${item.locked ? '<span class="pill glow-pill">Premium</span>' : '<span class="pill">Ready</span>'}</div>
-              <h2 style="margin-top:18px">${item.task}</h2>
+              <div class="row" style="justify-content:space-between"><span class="pill">Step ${index + 1}</span><span class="pill">Suggested</span></div>
+              <h2 style="margin-top:18px">${escapeHtml(item.label)}</h2>
               <p class="muted">${item.detail}</p>
-              ${item.locked ? '<button class="primary route-link" data-route="pricing">Upgrade to unlock</button>' : '<button class="secondary route-link" data-route="quiz">Start task</button>'}
-            `, item.locked ? 'locked' : '')}
+              <button class="secondary route-link" data-route="${item.route}">Start task</button>
+            `)}
           `
         )
         .join('')}
-    </section>
+    </section>` : panel('<div class="empty-state"><h2>No revision tasks yet.</h2><p>Add subjects, weak topics, or upcoming exams in your profile to receive grounded suggestions.</p><button class="secondary route-link" data-route="profile">Update profile</button></div>')}
   `;
 }
 
@@ -2478,6 +2686,13 @@ function renderFocusControls() {
   const [topSite, topMinutes] = mostDistractingSite();
   const [modeTitle, modeText] = focusModeCopy(focus.permissionMode);
   const enabledSites = focus.sites.filter((site) => site.enabled).length;
+  const priority = profileWeakPriority();
+  const continuedSet = getStudySets().find((set) => set.lastStudiedAt);
+  const focusRecommendations = [
+    ...(topSite ? [{ text: `You have spent ${topMinutes} minutes on ${topSite} today. Ready for a small study reset?`, route: 'quiz' }] : []),
+    ...(priority ? [{ text: `Ready for a short ${priority.topic} review?`, route: 'quiz' }] : []),
+    ...(continuedSet ? [{ text: `Continue ${continuedSet.title}?`, route: 'studyset' }] : []),
+  ];
 
   stage.innerHTML = `
     ${panel(`
@@ -2491,9 +2706,9 @@ function renderFocusControls() {
     `, 'hero-panel')}
 
     <section class="grid grid-4">
-      ${mini(`<p class="faint">Today's distraction time</p><div class="metric">${focus.analytics.todayMinutes || 61}m</div><small>Local prototype estimate</small>`)}
-      ${mini(`<p class="faint">Most distracting website</p><div class="metric" style="font-size:28px">${escapeHtml(topSite)}</div><small>${topMinutes || 31} minutes today</small>`)}
-      ${mini(`<p class="faint">Average focus session</p><div class="metric">${averageFocusSession()}m</div><small>Across mock sessions</small>`)}
+      ${mini(`<p class="faint">Today's distraction time</p><div class="metric">${focus.analytics.todayMinutes || 0}m</div><small>Recorded locally today</small>`)}
+      ${mini(`<p class="faint">Most distracting website</p><div class="metric" style="font-size:28px">${escapeHtml(topSite || 'No activity')}</div><small>${topSite ? `${topMinutes} minutes today` : 'No website activity recorded'}</small>`)}
+      ${mini(`<p class="faint">Average focus session</p><div class="metric">${focus.analytics.focusSessions?.length ? `${averageFocusSession()}m` : 'No sessions'}</div><small>From completed focus sessions</small>`)}
       ${mini(`<p class="faint">Time saved this week</p><div class="metric">${focus.analytics.timeSavedWeek}m</div><small>From reminders and locks</small>`)}
     </section>
 
@@ -2595,23 +2810,17 @@ function renderFocusControls() {
     </section>
 
     <section class="grid grid-3">
-      ${mini(`<p class="faint">Study streak</p><div class="metric">6</div><small>days</small>`)}
-      ${mini(`<p class="faint">Focus streak</p><div class="metric">4</div><small>low-distraction days</small>`)}
-      ${mini(`<p class="faint">Most productive day</p><div class="metric" style="font-size:30px">${focus.analytics.mostProductiveDay}</div><small>You usually study better around 7 PM.</small>`)}
+      ${mini(`<p class="faint">Study streak</p><div class="metric">${studyActivityStreak() || 'No streak'}</div><small>${studyActivityStreak() ? 'days from confirmed activity' : 'Complete a quiz or session to begin'}</small>`)}
+      ${mini(`<p class="faint">Focus streak</p><div class="metric">${focus.analytics.focusStreak || 'No streak'}</div><small>${focus.analytics.focusStreak ? 'low-distraction days' : 'No focus streak recorded yet'}</small>`)}
+      ${mini(`<p class="faint">Most productive day</p><div class="metric" style="font-size:30px">${escapeHtml(focus.analytics.mostProductiveDay || 'No data')}</div><small>${focus.analytics.mostProductiveDay ? 'Based on completed local sessions' : 'Complete focus sessions to see a pattern'}</small>`)}
     </section>
 
     ${panel(`
       <p class="eyebrow">Smart study recommendations</p>
       <div class="recommendation-grid">
-        ${[
-          "You've watched YouTube for 30 minutes. Want a quick 8-minute quiz instead?",
-          "You usually study better around 7 PM.",
-          "Continue yesterday's Chemistry revision?",
-          "You're 68% finished with Algebra.",
-          "Just one small study session. You've got this.",
-        ]
-          .map((item) => `<div class="list-row"><div><strong>Small reminder</strong><small>${item}</small></div><button class="secondary route-link" data-route="quiz">Study Now</button></div>`)
-          .join('')}
+        ${focusRecommendations.length
+          ? focusRecommendations.map((item) => `<div class="list-row"><div><strong>Small reminder</strong><small>${escapeHtml(item.text)}</small></div><button class="secondary route-link" data-route="${item.route}">Study Now</button></div>`).join('')
+          : '<div class="empty-state"><p>No recommendation yet. Add a subject, upload material, or complete a study activity to give Learnova useful context.</p></div>'}
       </div>
     `)}
   `;
@@ -2745,7 +2954,7 @@ function renderProfile() {
         <div>
           <p class="page-kicker">Student profile</p>
           <h1>${escapeHtml(profile.name)}</h1>
-          <p>${escapeHtml(profile.yearGroup || `Year ${profile.grade}`)} - ${escapeHtml(profile.curriculum)}</p>
+          <p>${escapeHtml(profile.yearGroup || profile.grade || 'Level not added')} - ${escapeHtml(profile.curriculum || 'Curriculum not added')}</p>
         </div>
       </div>
       <div class="profile-actions">
@@ -2758,7 +2967,7 @@ function renderProfile() {
     <section class="profile-detail-grid">
       <article class="profile-detail-section"><p class="page-kicker">Academic setup</p><div class="profile-detail-list"><div><span>School</span><strong>${escapeHtml(profile.schoolName || 'Not added')}</strong></div><div><span>Curriculum</span><strong>${escapeHtml(profile.curriculum || 'Not added')}</strong></div><div><span>Target grades</span><strong>${escapeHtml(profile.targetGrades || 'Not added')}</strong></div><div><span>Daily study time</span><strong>${escapeHtml(profile.dailyStudyTime || 'Not added')}</strong></div></div></article>
       <article class="profile-detail-section"><p class="page-kicker">Subjects</p><div class="study-set-topics">${subjectsList.map((subject) => `<span>${escapeHtml(subject)}</span>`).join('') || '<span>No subjects added</span>'}</div></article>
-      <article class="profile-detail-section"><p class="page-kicker">Goals</p><div class="profile-detail-list">${toList(profile.goals).slice(0, 4).map((goal) => `<div><strong>${escapeHtml(goal)}</strong></div>`).join('') || '<div><strong>Build a consistent study rhythm</strong></div>'}</div></article>
+      <article class="profile-detail-section"><p class="page-kicker">Goals</p><div class="profile-detail-list">${toList(profile.goals).slice(0, 4).map((goal) => `<div><strong>${escapeHtml(goal)}</strong></div>`).join('') || '<div><strong>No goals added</strong></div>'}</div></article>
       <article class="profile-detail-section"><p class="page-kicker">Study preferences</p><div class="study-set-topics">${toList(profile.studyStyle).map((style) => `<span>${escapeHtml(style)}</span>`).join('') || '<span>Not added</span>'}</div></article>
     </section>
     <section class="profile-privacy-section" aria-labelledby="profilePrivacyTitle">
@@ -3542,6 +3751,11 @@ function render() {
 }
 
 async function init() {
+  try {
+    await DataMigration.run();
+  } catch (error) {
+    console.error('Learnova could not finish its local data migration.', error);
+  }
   state = await storage.get();
   applyThemePreference(state.theme, false);
   ThemeManager.subscribe((theme) => {

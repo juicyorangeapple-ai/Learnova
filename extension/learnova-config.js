@@ -5,6 +5,7 @@
   // It is intentionally empty until the Learnova workspace in extension/ is deployed.
   const WEBSITE_URL = '';
   const API_BASE_URL = 'https://learnova-i1q6.onrender.com';
+  const DEMO_DATA_ENABLED = false;
 
   const MODES = Object.freeze({
     development: Object.freeze({
@@ -138,6 +139,7 @@
     websiteBaseUrl: resolvedWebsiteBaseUrl(),
     websiteConfigured,
     apiBaseUrl: active.apiBaseUrl,
+    demoDataEnabled: DEMO_DATA_ENABLED,
     websiteUrl,
     apiUrl,
     fetchApi,

@@ -21,8 +21,7 @@
       ? savedProfile
       : {};
     const weak = weakest(state);
-    const uploads = state.assistantUploads || [];
-    const sets = state.materials || [];
+    const uploads = state.studySets || state.assistantUploads || [];
     return {
       route,
       profile: {
@@ -32,18 +31,19 @@
         availableTime: profile.dailyStudyTime || profile.availableStudyTime || '',
         weakTopics: asList(profile.weakTopics),
         upcomingDeadlines: asList(profile.upcomingDeadlines),
+        subjects: asList(profile.subjects),
       },
       weak,
       studySet,
       uploads,
-      savedMaterialCount: sets.length + (state.savedPages || []).length,
+      savedMaterialCount: uploads.length + (state.savedPages || []).length,
       browserContext: state.browserContext || {},
     };
   }
 
   function fallback(context) {
     const { profile, weak, route, studySet, uploads } = context;
-    const topic = weak?.topic || profile.weakTopics[0] || 'your next topic';
+    const topic = weak?.topic || profile.weakTopics[0] || '';
     const subject = weak?.subject ? `${weak.subject}: ` : '';
     const actions = {
       dashboard: ['start-quiz', 'make-plan', 'continue-set', 'ask-tutor'],
@@ -71,13 +71,17 @@
     }
     if (route === 'quiz') {
       return {
-        message: `A quick review of ${subject}${topic} can make the next attempt easier.`,
+        message: topic
+          ? `A quick review of ${subject}${topic} can make the next attempt easier.`
+          : 'Choose a subject or study set and I can help you start a focused quiz.',
         actions: actions.quiz,
       };
     }
     if (route === 'mastery') {
       return {
-        message: `Your next confidence boost is ${subject}${topic}.`,
+        message: topic
+          ? `Your next confidence boost is ${subject}${topic}.`
+          : 'Complete a quiz and I will help you review the questions that need attention.',
         actions: actions.mastery,
       };
     }
@@ -89,12 +93,16 @@
     }
     if (profile.availableTime) {
       return {
-        message: `You have ${profile.availableTime} available. A short ${topic} session is a good place to start.`,
+        message: topic
+          ? `You have ${profile.availableTime} available. A short ${topic} session is a good place to start.`
+          : `You have ${profile.availableTime} available. I can plan it using your saved subjects.`,
         actions: actions[route] || actions.dashboard,
       };
     }
     return {
-      message: `A small ${topic} study step is ready when you are.`,
+      message: topic
+        ? `A small ${topic} study step is ready when you are.`
+        : 'Upload notes or ask a study question, and I will help you choose the next step.',
       actions: actions[route] || actions.dashboard,
     };
   }

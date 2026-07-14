@@ -1,0 +1,6 @@
+Chemistry: moles
+
+One mole contains 6.022 x 10^23 particles, known as Avogadro's constant.
+The number of moles can be calculated using n = m / M, where m is mass in grams
+and M is molar mass in grams per mole. Water has a molar mass of 18 g/mol, so
+18 g of water is 1 mol and contains 6.022 x 10^23 water molecules.

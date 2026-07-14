@@ -6086,3 +6086,58 @@ textarea {
     animation: none;
   }
 }
+
+/* Keep the command header inside the viewport at every workspace width. */
+.command-top {
+  display: grid;
+  grid-template-columns: minmax(160px, max-content) minmax(220px, 440px) minmax(170px, max-content);
+  justify-content: stretch;
+}
+
+.command-button {
+  width: 100%;
+  min-width: 0;
+}
+
+.student-chip {
+  min-width: 0;
+  max-width: 100%;
+  justify-self: end;
+}
+
+.student-chip > span:last-child {
+  max-width: min(220px, 24vw);
+}
+
+.student-chip strong,
+.student-chip small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upload-drop-zone.drag-active {
+  border-color: var(--accent, var(--cyan));
+  background: color-mix(in srgb, var(--accent, var(--cyan)) 12%, var(--surface-muted));
+}
+
+@media (max-width: 900px) {
+  .command-top {
+    grid-template-columns: minmax(0, 1fr) minmax(170px, auto);
+  }
+
+  .workspace-label { grid-column: 1; grid-row: 1; }
+  .student-chip { grid-column: 2; grid-row: 1; width: auto; max-width: 100%; }
+  .command-button { grid-column: 1 / -1; grid-row: 2; }
+  .student-chip > span:last-child { max-width: min(200px, 34vw); }
+}
+
+@media (max-width: 560px) {
+  .workspace-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .student-chip > span:last-child { max-width: 34vw; }
+}

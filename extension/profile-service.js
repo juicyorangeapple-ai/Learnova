@@ -169,6 +169,20 @@
     return { profile, auth };
   }
 
+  async function getStudentSubjects(profile) {
+    const source = profile
+      ? normalizeStudentProfile(profile)
+      : (await getStudentProfile()).profile;
+    return [...new Set(source.subjects.map((subject) => text(subject)).filter(Boolean))];
+  }
+
+  async function hasSubject(subject, profile) {
+    const target = text(subject).toLowerCase();
+    if (!target) return false;
+    const subjects = await getStudentSubjects(profile);
+    return subjects.some((item) => item.toLowerCase() === target);
+  }
+
   function buildStudentContext(profile) {
     const normalized = normalizeStudentProfile(profile);
     if (!normalized.personalizationEnabled) return {};
@@ -234,6 +248,8 @@
     saveStudentProfile,
     updateStudentProfile,
     clearStudentProfile,
+    getStudentSubjects,
+    hasSubject,
     buildStudentContext,
     validateStudentProfile,
   });
